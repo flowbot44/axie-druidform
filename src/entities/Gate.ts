@@ -10,6 +10,7 @@ export class Gate {
   public readonly body: Phaser.Physics.Arcade.StaticBody;
 
   private isOpen = false;
+  private lockedOpen = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.sprite = scene.add.rectangle(x, y, TILE_SIZE, TILE_SIZE, GATE_COLOR_CLOSED);
@@ -32,13 +33,27 @@ export class Gate {
   }
 
   close(): void {
+    if (this.lockedOpen) return;
     if (!this.isOpen) return;
     this.isOpen = false;
 
     this.sprite.setFillStyle(GATE_COLOR_CLOSED);
     this.sprite.setAlpha(1.0);
 
-    // Re-enable physics body to block movement again
     this.body.enable = true;
+    this.body.updateFromGameObject();
+  }
+
+  /** Lever on the far side: gate stays open even if the plate is released. */
+  lockOpen(): void {
+    this.lockedOpen = true;
+    this.open();
+    this.sprite.setFillStyle(GATE_COLOR_OPEN);
+    this.sprite.setAlpha(0.35);
+  }
+
+  unlock(): void {
+    this.lockedOpen = false;
+    this.close();
   }
 }

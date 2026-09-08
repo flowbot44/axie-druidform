@@ -9,6 +9,7 @@ import { PARTY } from "../config/constants.ts";
  *
  * Displays:
  *  - Active Axie name + role       (top-left)
+ *  - Stack heightTier if > 1
  *  - Energy counter                (top-right)
  *  - Room index                    (top-center)
  *  - Run timer                     (below room index)
@@ -17,8 +18,11 @@ import { PARTY } from "../config/constants.ts";
 export class HUDScene extends Phaser.Scene {
   private energyText!: Phaser.GameObjects.Text;
   private activeLabel!: Phaser.GameObjects.Text;
+  private stackLabel!: Phaser.GameObjects.Text;
   private roomLabel!: Phaser.GameObjects.Text;
   private timerText!: Phaser.GameObjects.Text;
+  private objectiveLabel!: Phaser.GameObjects.Text;
+  private hintText!: Phaser.GameObjects.Text;
 
   private portraits: {
     fill: Phaser.GameObjects.Arc;
@@ -32,6 +36,8 @@ export class HUDScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.input.enabled = false;
+
     const pad = 16;
     const w = this.cameras.main.width;
 
@@ -39,6 +45,13 @@ export class HUDScene extends Phaser.Scene {
     this.activeLabel = this.add.text(pad, pad, "", {
       fontSize: "18px",
       color: "#ffffff",
+      fontFamily: "monospace",
+      fontStyle: "bold",
+    });
+
+    this.stackLabel = this.add.text(pad, pad + 22, "", {
+      fontSize: "14px",
+      color: "#80deea",
       fontFamily: "monospace",
       fontStyle: "bold",
     });
@@ -71,6 +84,22 @@ export class HUDScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0);
 
+    this.objectiveLabel = this.add
+      .text(w / 2, pad + 44, "", {
+        fontSize: "13px",
+        color: "#ff9800",
+        fontFamily: "monospace",
+      })
+      .setOrigin(0.5, 0);
+
+    this.hintText = this.add
+      .text(w / 2, this.cameras.main.height - pad, "", {
+        fontSize: "12px",
+        color: "#666677",
+        fontFamily: "monospace",
+      })
+      .setOrigin(0.5, 1);
+
     // ── Bottom-left: slot portraits ──────────────────────────────────
     this.createSlotPortraits(pad);
 
@@ -91,6 +120,13 @@ export class HUDScene extends Phaser.Scene {
     this.registry.events.on("changedata-partyStates", () =>
       this.refreshBadges(),
     );
+    this.registry.events.on("changedata-stackHeight", () =>
+      this.refreshStaticHUD(),
+    );
+    this.registry.events.on("changedata-objective", () =>
+      this.refreshStaticHUD(),
+    );
+    this.registry.events.on("changedata-hint", () => this.refreshStaticHUD());
   }
 
   update(): void {
@@ -168,9 +204,26 @@ export class HUDScene extends Phaser.Scene {
 
     // Energy
     this.energyText.setText(`Energy ${energy}`);
+    this.energyText.setColor(energy <= 0 ? "#ef5350" : "#ffeb3b");
 
     // Room
     this.roomLabel.setText(`Room ${roomIndex}`);
+
+    const stackHeight = (this.registry.get("stackHeight") as number) ?? 1;
+    this.stackLabel.setText(stackHeight > 1 ? `Totem ×${stackHeight}` : "");
+
+    const objective = (this.registry.get("objective") as string) ?? "";
+    this.objectiveLabel.setText(objective);
+    this.objectiveLabel.setColor(
+      objective.startsWith("Bridge down") ||
+        objective.startsWith("Gate locked") ||
+        objective === "Shrine purified" ||
+        objective === "Path open"
+        ? "#66bb6a"
+        : "#ff9800",
+    );
+
+    this.hintText.setText((this.registry.get("hint") as string) ?? "");
 
     // Highlight active portrait
     for (let i = 0; i < this.portraits.length; i++) {
@@ -199,7 +252,10 @@ export class HUDScene extends Phaser.Scene {
       const badge = this.badgeTexts[i];
       if (!badge) continue;
 
-      if (state === "active") {
+      if (state === "stacked") {
+        badge.setText("STACKED");
+        badge.setColor("#80deea");
+      } else if (state === "active") {
         badge.setText("");
       } else if (state === "follow") {
         badge.setText("FOLLOW");

@@ -26,6 +26,12 @@ export class Axie {
   public heightTier = 1;
   public followPark: "follow" | "park" = "follow";
   public mountedTo: Axie | null = null;
+  /** Direct rider parented on this Axie (one child; walk to the top). */
+  public directRider: Axie | null = null;
+  /** Last non-zero move direction; used for dismount pop (GDD §11). */
+  public lastFacing = { x: 1, y: 0 };
+  /** Last floor position; used for pit snap (GDD §8, §10). */
+  public lastSafe = { x: 0, y: 0 };
 
   constructor(scene: Phaser.Scene, x: number, y: number, config: PartyMember) {
     this.scene = scene;
@@ -46,6 +52,7 @@ export class Axie {
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setCollideWorldBounds(true);
+    this.lastSafe = { x, y };
 
     // Slot number label above the body
     this.slotLabel = scene.add
@@ -62,6 +69,43 @@ export class Axie {
   /** Apply a normalized direction vector as velocity. */
   move(direction: { x: number; y: number }): void {
     this.body.setVelocity(direction.x * this.speed, direction.y * this.speed);
+    if (direction.x !== 0 || direction.y !== 0) {
+      this.lastFacing = { x: direction.x, y: direction.y };
+    }
+  }
+
+  /** True if this Axie is a rider or is carrying at least one rider. */
+  isInStack(): boolean {
+    return this.mountedTo !== null || this.directRider !== null;
+  }
+
+  /** Walk down to the stack base (self if unstacked). */
+  getBase(): Axie {
+    let node: Axie = this;
+    while (node.mountedTo) node = node.mountedTo;
+    return node;
+  }
+
+  /** Walk up to the stack top (self if unstacked). */
+  getTop(): Axie {
+    let node: Axie = this;
+    while (node.directRider) node = node.directRider;
+    return node;
+  }
+
+  /** Enable/disable the independent Arcade body (riders have none). */
+  setBodyEnabled(enabled: boolean): void {
+    this.body.enable = enabled;
+    if (!enabled) {
+      this.body.setVelocity(0, 0);
+    }
+  }
+
+  /** Draw riders above carriers (heightTier 1..3). */
+  applyStackDepth(): void {
+    this.sprite.setDepth(this.heightTier);
+    this.indicator.setDepth(this.heightTier - 0.1);
+    this.slotLabel.setDepth(this.heightTier + 0.1);
   }
 
   /** Toggle the active indicator ring with a pulsing tween. */
