@@ -1,0 +1,20 @@
+{
+  "name": "axie-druidform",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "description": "A top-down Zelda-style puzzle-action game where your three Axies must be swapped, parked, and stacked to purify the Totem of Lunacia.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -noEmit"
+  },
+  "dependencies": {
+    "phaser": "^3.88.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "vite": "^6.3.0"
+  }
+}
