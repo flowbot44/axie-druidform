@@ -1,12 +1,14 @@
 import Phaser from "phaser";
 import { BootScene } from "./scenes/BootScene.ts";
+import { GameScene } from "./scenes/GameScene.ts";
+import { HUDScene } from "./scenes/HUDScene.ts";
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   width: 1280,
   height: 720,
   parent: "game",
-  backgroundColor: "#1a1a2e",
+  backgroundColor: "#0e0e1a",
   physics: {
     default: "arcade",
     arcade: {
@@ -19,7 +21,7 @@ const config: Phaser.Types.Core.GameConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   pixelArt: true,
-  scene: [BootScene],
+  scene: [GameScene, HUDScene, BootScene],
 };
 
 new Phaser.Game(config);
