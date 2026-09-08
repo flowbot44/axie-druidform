@@ -19,8 +19,8 @@ export class HeavyPlate {
     // Draw an outline to make it look like a mechanism
     this.sprite.setStrokeStyle(2, 0x000000);
 
-    // Put it on the floor (below Axies)
-    this.sprite.setDepth(-1);
+    // Put it on the floor (above tiles, below Axies)
+    this.sprite.setDepth(0.1);
 
     this.target = target;
   }

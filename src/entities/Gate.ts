@@ -13,6 +13,7 @@ export class Gate {
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.sprite = scene.add.rectangle(x, y, TILE_SIZE, TILE_SIZE, GATE_COLOR_CLOSED);
+    this.sprite.setDepth(0.5);
     
     // Static body so it doesn't move when pushed
     scene.physics.add.existing(this.sprite, true);
