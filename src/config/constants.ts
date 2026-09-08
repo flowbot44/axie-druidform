@@ -24,6 +24,12 @@ export const GRID_LINE_COLOR = 0x44445e;
 export const TILE_FLOOR = 0;
 export const TILE_WALL = 1;
 
+/** Interactive object colors */
+export const PLATE_COLOR_OFF = 0x555555;
+export const PLATE_COLOR_ON = 0x4caf50;
+export const GATE_COLOR_CLOSED = 0x8d6e63;
+export const GATE_COLOR_OPEN = 0xd7ccc8;
+
 // ---------------------------------------------------------------------------
 // Party roster (GDD §4 — LOCKED)
 // ---------------------------------------------------------------------------
@@ -68,5 +74,20 @@ export const ROOM_1: number[][] = [
   [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
+  [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
+];
+
+/** Room 3 — Dual Weight Vault. Bisected room for Step 3. */
+export const ROOM_3: number[][] = [
+  [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W], // Gap for gate at col 10
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
 ];

@@ -43,6 +43,10 @@ export class PartyManager {
     return active;
   }
 
+  getAxies(): Axie[] {
+    return this.axies;
+  }
+
   getSprites(): Phaser.GameObjects.Ellipse[] {
     return this.axies.map((a) => a.sprite);
   }

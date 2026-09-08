@@ -9,9 +9,11 @@ import {
   GRID_LINE_COLOR,
   TILE_WALL,
   STARTING_ENERGY,
-  ROOM_1,
+  ROOM_3,
 } from "../config/constants.ts";
 import { PartyManager } from "../systems/PartyManager.ts";
+import { Gate } from "../entities/Gate.ts";
+import { HeavyPlate } from "../entities/HeavyPlate.ts";
 
 interface WASDKeys {
   W: Phaser.Input.Keyboard.Key;
@@ -32,6 +34,9 @@ export class GameScene extends Phaser.Scene {
   private wasd!: WASDKeys;
   private elapsedMs = 0;
 
+  private gate!: Gate;
+  private heavyPlate!: HeavyPlate;
+
   constructor() {
     super({ key: "GameScene" });
   }
@@ -40,7 +45,7 @@ export class GameScene extends Phaser.Scene {
     // ── Registry (shared state for HUD) ──────────────────────────────
     this.registry.set("energy", STARTING_ENERGY);
     this.registry.set("activeSlot", 1);
-    this.registry.set("roomIndex", 1);
+    this.registry.set("roomIndex", 3); // Changed for Step 3 focus
     this.registry.set("runTime", 0);
     this.registry.set("partyStates", {
       1: "active",
@@ -53,7 +58,7 @@ export class GameScene extends Phaser.Scene {
 
     // ── Tilemap from array ───────────────────────────────────────────
     const map = this.make.tilemap({
-      data: ROOM_1,
+      data: ROOM_3,
       tileWidth: TILE_SIZE,
       tileHeight: TILE_SIZE,
     });
@@ -80,12 +85,19 @@ export class GameScene extends Phaser.Scene {
     // ── Party ────────────────────────────────────────────────────────
     this.partyManager = new PartyManager(this);
 
+    // ── Puzzle Entities ──────────────────────────────────────────────
+    // Gate at col 10, row 5
+    this.gate = new Gate(this, 10 * TILE_SIZE + TILE_SIZE / 2, 5 * TILE_SIZE + TILE_SIZE / 2);
+    // Plate at col 5, row 5 (left side)
+    this.heavyPlate = new HeavyPlate(this, 5 * TILE_SIZE + TILE_SIZE / 2, 5 * TILE_SIZE + TILE_SIZE / 2, this.gate);
+
     // ── Collisions ───────────────────────────────────────────────────
     const sprites = this.partyManager.getSprites();
 
-    // Each Axie vs tilemap walls
+    // Each Axie vs tilemap walls and gate
     for (const sprite of sprites) {
       this.physics.add.collider(sprite, layer);
+      this.physics.add.collider(sprite, this.gate.sprite);
     }
 
     // Axies vs each other (pairwise)
@@ -142,6 +154,9 @@ export class GameScene extends Phaser.Scene {
 
     // Drive follower movement + sync visuals
     this.partyManager.update();
+
+    // Evaluate puzzle entities
+    this.heavyPlate.update(this.partyManager.getAxies());
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────
