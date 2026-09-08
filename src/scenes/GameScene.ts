@@ -9,10 +9,9 @@ import {
   GRID_LINE_COLOR,
   TILE_WALL,
   STARTING_ENERGY,
-  PARTY,
   ROOM_1,
 } from "../config/constants.ts";
-import { Axie } from "../entities/Axie.ts";
+import { PartyManager } from "../systems/PartyManager.ts";
 
 interface WASDKeys {
   W: Phaser.Input.Keyboard.Key;
@@ -24,11 +23,11 @@ interface WASDKeys {
 /**
  * GameScene — main gameplay scene.
  *
- * Step 1: one room, one Axie (Olek), WASD movement, tilemap collision.
+ * Step 2: three Axies, slot select (1/2/3/Tab), follow tether, F park.
  * Launches HUDScene as a parallel overlay.
  */
 export class GameScene extends Phaser.Scene {
-  private axie!: Axie;
+  private partyManager!: PartyManager;
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: WASDKeys;
   private elapsedMs = 0;
@@ -43,6 +42,11 @@ export class GameScene extends Phaser.Scene {
     this.registry.set("activeSlot", 1);
     this.registry.set("roomIndex", 1);
     this.registry.set("runTime", 0);
+    this.registry.set("partyStates", {
+      1: "active",
+      2: "follow",
+      3: "follow",
+    });
 
     // ── Tile textures (procedural) ───────────────────────────────────
     this.createTileTextures();
@@ -53,7 +57,15 @@ export class GameScene extends Phaser.Scene {
       tileWidth: TILE_SIZE,
       tileHeight: TILE_SIZE,
     });
-    const tileset = map.addTilesetImage("tiles", "tiles", TILE_SIZE, TILE_SIZE, 0, 0, 0)!;
+    const tileset = map.addTilesetImage(
+      "tiles",
+      "tiles",
+      TILE_SIZE,
+      TILE_SIZE,
+      0,
+      0,
+      0,
+    )!;
     const layer = map.createLayer(0, tileset, 0, 0)!;
     layer.setCollision(TILE_WALL);
 
@@ -62,24 +74,59 @@ export class GameScene extends Phaser.Scene {
     const roomPxH = ROOM_HEIGHT * TILE_SIZE;
 
     this.physics.world.setBounds(0, 0, roomPxW, roomPxH);
-
     this.cameras.main.setZoom(2);
     this.cameras.main.centerOn(roomPxW / 2, roomPxH / 2);
 
-    // ── Spawn Olek (slot 1) ──────────────────────────────────────────
-    const spawnX = 3 * TILE_SIZE + TILE_SIZE / 2;
-    const spawnY = Math.floor(ROOM_HEIGHT / 2) * TILE_SIZE + TILE_SIZE / 2;
-    const firstMember = PARTY[0];
-    if (!firstMember) throw new Error("Party roster is empty");
-    this.axie = new Axie(this, spawnX, spawnY, firstMember);
+    // ── Party ────────────────────────────────────────────────────────
+    this.partyManager = new PartyManager(this);
 
-    // ── Collision ────────────────────────────────────────────────────
-    this.physics.add.collider(this.axie.sprite, layer);
+    // ── Collisions ───────────────────────────────────────────────────
+    const sprites = this.partyManager.getSprites();
+
+    // Each Axie vs tilemap walls
+    for (const sprite of sprites) {
+      this.physics.add.collider(sprite, layer);
+    }
+
+    // Axies vs each other (pairwise)
+    for (let i = 0; i < sprites.length; i++) {
+      for (let j = i + 1; j < sprites.length; j++) {
+        this.physics.add.collider(sprites[i]!, sprites[j]!);
+      }
+    }
 
     // ── Input ────────────────────────────────────────────────────────
     if (!this.input.keyboard) throw new Error("Keyboard input unavailable");
+
     this.cursors = this.input.keyboard.createCursorKeys();
     this.wasd = this.input.keyboard.addKeys("W,A,S,D") as WASDKeys;
+
+    // Capture Tab so the browser doesn't steal focus
+    this.input.keyboard.addCapture([Phaser.Input.Keyboard.KeyCodes.TAB]);
+
+    // Slot select: 1 / 2 / 3
+    const key1 = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.ONE,
+    );
+    const key2 = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.TWO,
+    );
+    const key3 = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.THREE,
+    );
+    key1.on("down", () => this.partyManager.selectSlot(1));
+    key2.on("down", () => this.partyManager.selectSlot(2));
+    key3.on("down", () => this.partyManager.selectSlot(3));
+
+    // Cycle: Tab
+    const keyTab = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.TAB,
+    );
+    keyTab.on("down", () => this.partyManager.cycleSlot());
+
+    // Follow / Park toggle: F
+    const keyF = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
+    keyF.on("down", () => this.partyManager.toggleFollowPark());
 
     // ── HUD overlay ──────────────────────────────────────────────────
     this.scene.launch("HUDScene");
@@ -90,8 +137,11 @@ export class GameScene extends Phaser.Scene {
     this.elapsedMs += delta;
     this.registry.set("runTime", this.elapsedMs);
 
-    // Movement
-    this.axie.move(this.getInputDirection());
+    // Active Axie responds to player input
+    this.partyManager.getActive().move(this.getInputDirection());
+
+    // Drive follower movement + sync visuals
+    this.partyManager.update();
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────

@@ -8,11 +8,11 @@ import { PARTY } from "../config/constants.ts";
  * Reads shared state from the Phaser registry.
  *
  * Displays:
- *  - Active Axie name + role  (top-left)
- *  - Energy counter           (top-right)
- *  - Room index               (top-center)
- *  - Run timer                (below room index)
- *  - Three slot portraits     (bottom-left)
+ *  - Active Axie name + role       (top-left)
+ *  - Energy counter                (top-right)
+ *  - Room index                    (top-center)
+ *  - Run timer                     (below room index)
+ *  - Three slot portraits + badges (bottom-left)
  */
 export class HUDScene extends Phaser.Scene {
   private energyText!: Phaser.GameObjects.Text;
@@ -24,6 +24,8 @@ export class HUDScene extends Phaser.Scene {
     fill: Phaser.GameObjects.Arc;
     border: Phaser.GameObjects.Arc;
   }[] = [];
+
+  private badgeTexts: Phaser.GameObjects.Text[] = [];
 
   constructor() {
     super({ key: "HUDScene" });
@@ -74,14 +76,20 @@ export class HUDScene extends Phaser.Scene {
 
     // ── Initial draw ─────────────────────────────────────────────────
     this.refreshStaticHUD();
+    this.refreshBadges();
 
-    // Redraw when energy or active slot changes (but NOT runTime — that's per-frame)
-    this.registry.events.on("changedata-energy", () => this.refreshStaticHUD());
+    // ── Registry listeners ───────────────────────────────────────────
+    this.registry.events.on("changedata-energy", () =>
+      this.refreshStaticHUD(),
+    );
     this.registry.events.on("changedata-activeSlot", () =>
       this.refreshStaticHUD(),
     );
     this.registry.events.on("changedata-roomIndex", () =>
       this.refreshStaticHUD(),
+    );
+    this.registry.events.on("changedata-partyStates", () =>
+      this.refreshBadges(),
     );
   }
 
@@ -102,11 +110,13 @@ export class HUDScene extends Phaser.Scene {
     for (let i = 0; i < PARTY.length; i++) {
       const member = PARTY[i]!;
       const x = pad + 20 + i * 50;
-      const y = h - pad - 20;
+      const y = h - pad - 36;
 
-      const border = this.add.circle(x, y, 16).setStrokeStyle(2, 0x666666);
-      border.setFillStyle(0x000000, 0); // transparent fill
+      // Border circle
+      const border = this.add.circle(x, y, 16, 0x000000, 0);
+      border.setStrokeStyle(2, 0x666666);
 
+      // Fill circle
       const fill = this.add.circle(x, y, 14, member.color, 0.3);
 
       this.portraits.push({ fill, border });
@@ -121,14 +131,24 @@ export class HUDScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
 
-      // Name below
+      // Name below circle
       this.add
-        .text(x, y + 24, member.name, {
+        .text(x, y + 22, member.name, {
           fontSize: "10px",
           color: "#aaaaaa",
           fontFamily: "monospace",
         })
         .setOrigin(0.5, 0);
+
+      // State badge below name
+      const badge = this.add
+        .text(x, y + 34, "", {
+          fontSize: "9px",
+          color: "#888888",
+          fontFamily: "monospace",
+        })
+        .setOrigin(0.5, 0);
+      this.badgeTexts.push(badge);
     }
   }
 
@@ -164,6 +184,30 @@ export class HUDScene extends Phaser.Scene {
         isActive ? 0xffffff : 0x666666,
         isActive ? 1 : 0.5,
       );
+    }
+  }
+
+  private refreshBadges(): void {
+    const states = this.registry.get("partyStates") as
+      | Record<number, string>
+      | undefined;
+    if (!states) return;
+
+    for (let i = 0; i < PARTY.length; i++) {
+      const member = PARTY[i]!;
+      const state = states[member.slot];
+      const badge = this.badgeTexts[i];
+      if (!badge) continue;
+
+      if (state === "active") {
+        badge.setText("");
+      } else if (state === "follow") {
+        badge.setText("FOLLOW");
+        badge.setColor("#66bb6a");
+      } else if (state === "park") {
+        badge.setText("PARK");
+        badge.setColor("#ff7043");
+      }
     }
   }
 }

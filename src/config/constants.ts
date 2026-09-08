@@ -6,6 +6,11 @@ export const ROOM_HEIGHT = 11; // tiles
 /** Movement (GDD §6, §9) */
 export const PLAYER_SPEED = 160; // px/sec — smooth at 32px tiles
 
+/** Follow tether (GDD §8) */
+export const FOLLOW_DISTANCE = 60; // px gap between leader and each follower
+export const FOLLOW_STOP_THRESHOLD = 8; // px; follower stops when this close to target
+export const BREADCRUMB_INTERVAL = 8; // record a breadcrumb every N px of leader movement
+
 /** Energy (GDD §9) */
 export const STARTING_ENERGY = 100;
 
