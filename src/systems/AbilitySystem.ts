@@ -16,6 +16,13 @@ import {
   SLASH_COST,
   SLASH_REACH,
 } from "../config/constants.ts";
+import { partCostDelta, partRangeMul } from "../config/collection.ts";
+import {
+  catSlashCost,
+  hawkDartCost,
+  isCatClass,
+  isFlyerClass,
+} from "../config/forms.ts";
 
 export interface AbilityTargets {
   brambles?: Bramble[];
@@ -24,11 +31,13 @@ export interface AbilityTargets {
   cores?: BossCore[];
   anchor?: AnchorCell;
   isWall?: (x: number, y: number) => boolean;
+  isPit?: (x: number, y: number) => boolean;
+  fillPitAt?: (x: number, y: number) => void;
 }
 
 /**
- * Space / click fires the **top** Axie's kit (GDD §9, §11).
- * Dart is a LOS hitscan; slash cuts brambles; slam is a melee zone.
+ * Space / click fires the active body's kit (GDD §9, §11).
+ * Dawn Seed Dart is a Bird dart that also vines pit tiles.
  */
 export class AbilitySystem {
   constructor(private readonly scene: Phaser.Scene) {}
@@ -39,29 +48,63 @@ export class AbilitySystem {
     facing: { x: number; y: number },
     targets: AbilityTargets = {},
   ): boolean {
-    const spec = this.specFor(attacker.role);
-    if (!spec) return false;
+    const kit = this.kitFor(attacker);
+    if (!kit) return false;
 
     const energy = (this.scene.registry.get("energy") as number) ?? 0;
-    if (energy < spec.cost) return false;
+    if (energy < kit.cost) return false;
 
-    this.scene.registry.set("energy", energy - spec.cost);
+    this.scene.registry.set("energy", energy - kit.cost);
 
     const dir = this.normalize(facing);
-    if (attacker.role === "Striker") {
-      this.slash(origin, dir, targets.brambles ?? [], targets.cores ?? []);
-    } else if (attacker.role === "Tank") {
-      this.slam(origin, targets.anchor);
+    const partMul = Math.max(...attacker.pile().map((a) => partRangeMul(a)));
+    const rangeMul = attacker.rangeMul() * partMul;
+    if (kit.kind === "slash") {
+      this.slash(origin, dir, targets.brambles ?? [], targets.cores ?? [], rangeMul);
+    } else if (kit.kind === "slam") {
+      this.slam(origin, targets.anchor, rangeMul);
     } else {
-      this.dart(origin, dir, attacker.heightTier, targets);
+      this.dart(attacker, origin, dir, targets, kit.kind === "seed", rangeMul);
     }
     return true;
   }
 
-  private specFor(role: string): { cost: number } | null {
-    if (role === "Striker") return { cost: SLASH_COST };
-    if (role === "Tank") return { cost: SLAM_COST };
-    if (role === "Scout") return { cost: DART_COST };
+  private kitFor(
+    attacker: Axie,
+  ): { cost: number; kind: "slash" | "slam" | "dart" | "seed" } | null {
+    if (attacker.isBear()) {
+      const cactus = Math.min(...attacker.pile().map((a) => partCostDelta(a)), 0);
+      return {
+        cost: Math.max(1, SLAM_COST + cactus),
+        kind: "slam",
+      };
+    }
+    if (attacker.isCat()) {
+      return {
+        cost: catSlashCost(attacker.lineageCount(isCatClass)),
+        kind: "slash",
+      };
+    }
+    if (attacker.isHawk()) {
+      return {
+        cost: hawkDartCost(attacker.lineageCount(isFlyerClass) > 0),
+        kind: "seed",
+      };
+    }
+    if (attacker.isDruidHost()) return null;
+
+    if (attacker.axieClass === "Beast") {
+      return { cost: SLASH_COST, kind: "slash" };
+    }
+    if (attacker.axieClass === "Plant") {
+      return {
+        cost: Math.max(1, SLAM_COST + partCostDelta(attacker)),
+        kind: "slam",
+      };
+    }
+    if (attacker.axieClass === "Bird") {
+      return { cost: DART_COST, kind: "dart" };
+    }
     return null;
   }
 
@@ -70,28 +113,35 @@ export class AbilitySystem {
     facing: { x: number; y: number },
     brambles: Bramble[],
     cores: BossCore[],
+    rangeMul: number,
   ): void {
     const facingAngle = Math.atan2(facing.y, facing.x);
     const halfArc = Phaser.Math.DegToRad(SLASH_ARC_DEG / 2);
+    const reach = SLASH_REACH * rangeMul;
 
-    this.drawSlice(origin.x, origin.y, SLASH_REACH, facingAngle, halfArc, 0xff9800);
+    this.drawSlice(origin.x, origin.y, reach, facingAngle, halfArc, 0xff9800);
 
     for (const bramble of brambles) {
       if (bramble.isCut() || !bramble.sprite.active) continue;
-      if (this.inArc(origin, bramble.sprite, facingAngle, halfArc, SLASH_REACH)) {
+      if (this.inArc(origin, bramble.sprite, facingAngle, halfArc, reach)) {
         bramble.tryCut();
       }
     }
     for (const core of cores) {
       if (!core.isExposed()) continue;
-      if (this.inArc(origin, core.sprite, facingAngle, halfArc, SLASH_REACH)) {
+      if (this.inArc(origin, core.sprite, facingAngle, halfArc, reach)) {
         core.tryCut();
       }
     }
   }
 
-  private slam(origin: { x: number; y: number }, anchor?: AnchorCell): void {
-    const ring = this.scene.add.circle(origin.x, origin.y, SLAM_RADIUS, 0x4caf50, 0.28);
+  private slam(
+    origin: { x: number; y: number },
+    anchor: AnchorCell | undefined,
+    rangeMul: number,
+  ): void {
+    const radius = SLAM_RADIUS * rangeMul;
+    const ring = this.scene.add.circle(origin.x, origin.y, radius, 0x4caf50, 0.28);
     ring.setDepth(6);
     this.scene.tweens.add({
       targets: ring,
@@ -104,17 +154,23 @@ export class AbilitySystem {
   }
 
   private dart(
+    attacker: Axie,
     origin: { x: number; y: number },
     facing: { x: number; y: number },
-    heightTier: number,
     targets: AbilityTargets,
+    seed: boolean,
+    rangeMul: number,
   ): void {
-    let impactX = origin.x + facing.x * DART_RANGE;
-    let impactY = origin.y + facing.y * DART_RANGE;
+    const range = DART_RANGE * rangeMul;
+    let impactX = origin.x + facing.x * range;
+    let impactY = origin.y + facing.y * range;
 
-    for (let d = DART_STEP; d <= DART_RANGE; d += DART_STEP) {
+    for (let d = DART_STEP; d <= range; d += DART_STEP) {
       const x = origin.x + facing.x * d;
       const y = origin.y + facing.y * d;
+      if (seed && targets.isPit?.(x, y)) {
+        targets.fillPitAt?.(x, y);
+      }
       if (targets.isWall?.(x, y)) {
         impactX = x;
         impactY = y;
@@ -127,7 +183,7 @@ export class AbilitySystem {
         if (Math.hypot(x - eye.sprite.x, y - eye.sprite.y) > EYE_HIT_RADIUS) {
           continue;
         }
-        eye.receiveHit(heightTier);
+        eye.receiveHit(attacker);
         impactX = eye.sprite.x;
         impactY = eye.sprite.y;
         hitEye = true;
@@ -140,14 +196,15 @@ export class AbilitySystem {
         !crystal.isSolved() &&
         Math.hypot(x - crystal.sprite.x, y - crystal.sprite.y) <= EYE_HIT_RADIUS
       ) {
-        crystal.receiveHit(heightTier);
+        crystal.receiveHit(attacker);
         impactX = crystal.sprite.x;
         impactY = crystal.sprite.y;
         break;
       }
     }
 
-    const bolt = this.scene.add.rectangle(origin.x, origin.y, 10, 4, 0x42a5f5);
+    const color = seed ? 0xb39ddb : 0x42a5f5;
+    const bolt = this.scene.add.rectangle(origin.x, origin.y, 10, 4, color);
     bolt.setDepth(6);
     bolt.setRotation(Math.atan2(facing.y, facing.x));
     this.scene.tweens.add({
@@ -157,6 +214,18 @@ export class AbilitySystem {
       duration: Math.max(80, Math.hypot(impactX - origin.x, impactY - origin.y) * 0.6),
       onComplete: () => bolt.destroy(),
     });
+
+    if (seed) {
+      const sprout = this.scene.add.circle(impactX, impactY, 6, 0x81c784, 0.5);
+      sprout.setDepth(5);
+      this.scene.tweens.add({
+        targets: sprout,
+        alpha: 0,
+        scale: 2,
+        duration: 280,
+        onComplete: () => sprout.destroy(),
+      });
+    }
   }
 
   private drawSlice(

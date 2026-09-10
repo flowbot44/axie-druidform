@@ -11,7 +11,6 @@ import {
   TILE_PIT,
   TILE_SIZE,
   TILE_WALL,
-  BOSS_EYE_TIER,
   roomIndexAt,
   roomOriginX,
   worldCenter,
@@ -38,6 +37,7 @@ export class Dungeon {
   energyOnRoomEnter = STARTING_ENERGY;
 
   readonly brambles: Bramble[];
+  readonly exitBrambles: Bramble[];
   readonly eye: EyeBeacon;
   readonly crystal: Crystal;
   readonly gate: Gate;
@@ -51,6 +51,7 @@ export class Dungeon {
   private victoryQueued = false;
   private shrineSprite!: Phaser.GameObjects.Rectangle;
   private shrineLabel!: Phaser.GameObjects.Text;
+  private readonly vineTiles: { tx: number; ty: number }[] = [];
 
   private readonly scene: Phaser.Scene;
   private bellCooldown = 0;
@@ -82,6 +83,10 @@ export class Dungeon {
       const p = worldCenter(1, 10, row);
       return new Bramble(scene, p.x, p.y);
     });
+    this.exitBrambles = [4, 5, 6].map((row) => {
+      const p = worldCenter(4, 14, row);
+      return new Bramble(scene, p.x, p.y);
+    });
 
     const eyePos = worldCenter(2, 16, 2);
     this.eye = new EyeBeacon(scene, eyePos.x, eyePos.y, () => this.lowerBridge());
@@ -95,16 +100,15 @@ export class Dungeon {
       this.gate.lockOpen();
       this.scene.registry.set(
         "objective",
-        "Gate locked open — Olek may cross",
+        "Gate locked open — Plant may cross",
       );
     });
 
-    const crystalPos = worldCenter(4, 15, 5);
+    const crystalPos = worldCenter(4, 17, 2);
     this.crystal = new Crystal(scene, crystalPos.x, crystalPos.y);
 
     this.bells = [];
     for (let i = 1; i <= ROOM_COUNT; i++) {
-      // Top-left corner, off the east-west critical path.
       const p = worldCenter(i, 4, 1);
       this.bells.push(new ResetBell(scene, p.x, p.y));
     }
@@ -131,7 +135,7 @@ export class Dungeon {
       bossEyePos.x,
       bossEyePos.y,
       () => this.onBossEye(),
-      BOSS_EYE_TIER,
+      "hawk",
     );
 
     const corePos = worldCenter(5, 13, 5);
@@ -156,7 +160,7 @@ export class Dungeon {
       this.scene.physics.add.collider(sprite, this.gate.sprite);
       this.scene.physics.add.collider(sprite, this.crystal.sprite);
       this.scene.physics.add.collider(sprite, this.whip.sprite);
-      for (const bramble of this.brambles) {
+      for (const bramble of [...this.brambles, ...this.exitBrambles]) {
         this.scene.physics.add.collider(sprite, bramble.sprite);
       }
     }
@@ -195,7 +199,6 @@ export class Dungeon {
     this.lockCameraToRoom(index, snapCamera);
   }
 
-  /** Call each frame with the driven Axie's x. */
   checkLeaderRoom(worldX: number, energy: number): void {
     if (this.panning) return;
     const next = roomIndexAt(worldX);
@@ -213,14 +216,23 @@ export class Dungeon {
     return !tile || tile.index === TILE_WALL;
   }
 
+  fillPitAt(x: number, y: number): void {
+    const tile = this.layer.getTileAtWorldXY(x, y, true);
+    if (!tile || tile.index !== TILE_PIT) return;
+    this.layer.putTileAt(TILE_FLOOR, tile.x, tile.y);
+    this.vineTiles.push({ tx: tile.x, ty: tile.y });
+  }
+
   abilityTargets(): AbilityTargets {
     return {
-      brambles: this.brambles,
+      brambles: [...this.brambles, ...this.exitBrambles],
       eyes: [this.eye, this.bossEye],
       crystal: this.crystal,
       cores: [this.core],
       anchor: this.anchor,
-      isWall: (x, y) => this.isWall(x, y) || this.whip.blocks(x, y),
+      isWall: (x, y) => this.isWall(x, y),
+      isPit: (x, y) => this.isPit(x, y),
+      fillPitAt: (x, y) => this.fillPitAt(x, y),
     };
   }
 
@@ -274,6 +286,8 @@ export class Dungeon {
     }
     if (this.currentIndex === 4) {
       this.crystal.reset();
+      for (const bramble of this.exitBrambles) bramble.reset();
+      this.raiseVines();
     }
     if (this.currentIndex === 5) {
       this.whip.reset();
@@ -282,19 +296,20 @@ export class Dungeon {
       this.victoryQueued = false;
       this.shrineSprite.setFillStyle(0x5d4037);
       this.shrineLabel.setColor("#bcaaa4");
+      this.shrineLabel.setText("Shrine");
     }
     this.applyRoomCopy(this.currentIndex);
   }
 
   private onBossEye(): void {
     this.core.expose();
-    this.scene.registry.set("objective", "Core exposed — Buba slash once");
+    this.scene.registry.set("objective", "Core exposed — Cat slash once");
   }
 
   private onCoreBroken(): void {
     this.shrineSprite.setFillStyle(0x80deea);
     this.shrineLabel.setColor("#80deea");
-    this.shrineLabel.setText("Totem of Lunacia");
+    this.shrineLabel.setText("Shrine of Lunacia");
     this.scene.registry.set("objective", "Shrine purified");
     this.scene.time.delayedCall(900, () => {
       this.victoryQueued = true;
@@ -312,5 +327,12 @@ export class Dungeon {
     for (const col of [28, 29, 30]) {
       this.layer.putTileAt(TILE_PIT, col, 5);
     }
+  }
+
+  private raiseVines(): void {
+    for (const vine of this.vineTiles) {
+      this.layer.putTileAt(TILE_PIT, vine.tx, vine.ty);
+    }
+    this.vineTiles.length = 0;
   }
 }

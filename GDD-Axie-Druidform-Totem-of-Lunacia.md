@@ -2,394 +2,346 @@
 
 **Axie Druidform — Totem of Lunacia**  
 Axie Vibeathon · Round 1 Prototype + Product Vision  
-Status: **LOCKED for implementation**  
-Last updated: 2026-09-07
+Status: **LOCKED** — matches the current prototype  
+Last updated: 2026-09-10
 
 ---
 
 ## 0. How to use this document
 
-- **Round 1 (Sep 8–21):** implement only sections marked **R1**.  
-- **Vision / submission copy:** use section 1 word-for-word.  
-- Do not reintroduce morph, shapeshift, wallet login, Spine mixer, or procedural dungeons into the prototype.  
-- If a later idea conflicts with a **LOCK** box, the lock wins.
+- **Round 1 (Sep 8–21):** this file is the lock. Code that disagrees with a LOCK is wrong.  
+- **Vision / submission copy:** use §1 word-for-word.  
+- Phaser, one tested feature at a time, approved assets, wallet-free play.  
+- Do not reintroduce: morph-of-one-hero, totem stacking, wallet login, live Market API, mixers, API keys in the client, default starters (Olek / Buba / Puffy), or `1`/`2`/`3` as form keys.  
+- Axie Core Discord notes are **starting points, not a checklist.** Token integration is not required.
 
 ---
 
 ## 1. Locked product vision (word-for-word)
 
-Use this sentence across the pitch, README, thumbnail caption, and Vibeathon submission form:
+> The long-term fantasy of Axie Druidform is commanding Axies you actually own as a tactical fireteam—picking who enters the dungeon, then combining any two or three into Bear, Cat, or Hawk. The form does the puzzle job; the classes and parts you stuffed into it decide how heavy, cheap, or fast that job is.
 
-> The long-term fantasy of Axie Druidform is commanding your actual three owned Axies as a dynamic tactical fireteam—where each Axie’s specific on-chain genetics determine its role as Tank, Striker, or Scout, allowing players to synergize body parts, park companions on strategic switches, and physically stack their real collection into a 3-tier Totem of Lunacia.
+**R1 ownership:** `src/data/owned-axies.json` — nine Axies (3 Plant, 3 Beast, 3 Bird) snapshotted from `0xdf8b35668c8fcf82b1d1707875c98cd05b6927c4`. No wallet connect. No live Market call.
 
-**Round 2 mixer note (vision only, not R1 code):**  
-The Mixer renders all three party slots using real Axie IDs input by the player or read from a public Ronin address, falling back to default starter IDs if fewer than three are provided.
+**Mixer / Market (vision only):** Axie ID → Market GraphQL genes → Mixer. No player wallet required. API key stays out of the client and public repo.
 
-**Axie Core one-liner for judges (R1 + vision):**  
-Dungeon clears are how this fireteam earns AXP and, later, how owned genetics rewrite Tank / Striker / Scout roles.
+**Axie Core one-liner:**  
+**Every trio can purify the shrine.** You seek a Plant because Bear hold-time is generous. You seek a Beast because Cat slashes cost less. You seek a Bird because Hawk flies faster. Three of one class still finish — they just spend more energy.
 
 ---
 
-## 2. One-sentence pitch (submission field)
+## 2. One-sentence pitch
 
-A top-down Zelda-style puzzle-action game where your three Axies must be swapped, parked, and stacked to purify the Totem of Lunacia on a tight energy budget.
+A top-down Zelda-style puzzle-action game where you pick three owned Axies, then swap, park, and fuse them into Bear, Cat, or Hawk to purify the Shrine of Lunacia on a tight energy budget.
 
 ---
 
 ## 3. Design pillars
 
-1. **True team presence.** All three Axies exist in the room at once. Puzzles are spatial labor, not menus.  
-2. **Division of labor.** Tank mass, Striker break, Scout reach. No one body solves a room.  
-3. **Action economy over twitch.** Energy remaining is the score. Planning beats speed.  
-4. **Readable in four minutes.** Judges finish a clean run before the next tab.  
-5. **Core-shaped, wallet-free.** R1 proves the pipeline with starters + simulated AXP. R2 binds real IDs.
+1. **Owned bodies.** Pick 3 from the JSON. No default fireteam.  
+2. **Any trio can finish.** Multiple paths. Mixed classes score better; three Plants still clear.  
+3. **Form is the job; lineage is the stat.** Bear mass, Cat slash, Hawk fly. Who you put in changes the numbers.  
+4. **×2 vs ×3.** More bodies in the pile = better move, range, and fuse clock.  
+5. **Keys do one job.** `1`/`2`/`3` pick Axies. `Z`/`X`/`C` pick forms.  
+6. **Energy is the score.** Planning beats speed.  
+7. **Readable in four minutes.** Wallet-free.
 
 ---
 
-## 4. Round 1 roster (LOCK)
+## 4. Round 1 collection (LOCK)
 
-Party size is exactly three. Slots are hard-locked for the 13-day prototype. Genetics do **not** change roles in R1.
+**File:** `src/data/owned-axies.json`  
+**Owner (snapshot):** `0xdf8b35668c8fcf82b1d1707875c98cd05b6927c4`  
+Pick **any three**. Slots `1`/`2`/`3` are pick order. Three Plants is legal and completable.
 
-| Slot | Key | Starter | Class body | Vision role | Function |
-| --- | --- | --- | --- | --- | --- |
-| 1 | `1` | Olek | Plant | Tank | Mass, plates, hazard immunity, Root Slam |
-| 2 | `2` | Buba | Beast | Striker | Sprint, brambles / cracked walls, Ronin Slash |
-| 3 | `3` | Puffy | Bird | Scout | Hover over mud / chasms, Feather Dart |
+| Class | Id | Name | Notable parts |
+| --- | --- | --- | --- |
+| Plant | 10865685 | Axie #10865685 | cactus horn |
+| Plant | 6932506 | T_1 | cactus + pumpkin |
+| Plant | 4060820 | BBP PLANT2 | pumpkin back |
+| Beast | 95221 | Axie #95221 | dual-blade |
+| Beast | 4551303 | B2 | imp + ronin |
+| Beast | 4919477 | Axie #4919477 | dual-blade |
+| Bird | 11070928 | Axie #11070928 | pigeon-post |
+| Bird | 11367315 | Axie #11367315 | swallow |
+| Bird | 12025435 | AOE Bird | — |
 
-**Title screen — Mock Wallet toggle (R1):**  
-Off = Olek / Buba / Puffy.  
-On = load three JSON profiles (display name, tint, flavor). Still the same three roles. No part parsing. No Ronin.
-
-**Language lock:** say **swap** and **stack**. Never “morph,” “Chimera Shift,” or “despawn” in HUD, tutorial, or README. Chimera / part-hybridization lives only in §16 Vision.
+**Language:** swap, park, fuse, split, **Bear / Cat / Hawk**. Never morph, stack, totem, Chimera Shift, or despawn in HUD. Product title may keep “Totem of Lunacia”; the win object is the **Shrine of Lunacia**.
 
 ---
 
-## 5. Player fantasy in play
+## 5. Player fantasy
 
-You are the conductor of a triad. One Axie moves under you. The other two either follow on a tether or stand as anchors. When the shrine sits too high, you build a Totem: bodies parented into integer height tiers. The base writes physics. The top writes the attack origin.
+You choose three Axies you own. Unfused they keep class jobs. When you need a body the party does not have, you **fuse** two or three into Druidform and press **`Z` Bear, `X` Cat, `C` Hawk**. Heavier piles hold plates longer. Cat-lineage piles slash cheaper. Flyer piles hawk faster.
 
 ---
 
 ## 6. Camera, space, movement (LOCK)
 
-- Genre: top-down action-adventure.  
-- Movement: free 2D arcade velocity on a **32×32 px** tilemap.  
-- Collision: tile-aligned solids, hazards, plates, and pits. Free analog feel; snapped interaction cells.  
-- Camera: room-based. On door enter, camera eases to the new room. No continuous overworld scroll in R1.  
-- Playable area per room: roughly 16–24 tiles wide, readable at 1280×720.  
-- Beast passive: **+25% max speed** while Buba is the active, unstacked unit. Cap acceleration so he cannot skip a 32px plate in one frame.
+- Top-down, 32×32 tiles, arcade velocity, room camera (five rooms stitched east–west).  
+- Beast unfused: +25% speed (ronin back ×1.15 more).  
+- Hawk form: hover pits + fly speed `× (1 + 0.15 × flyer count)` on top of ×2/×3.
 
 ---
 
 ## 7. Controls (LOCK)
 
-| Input | Action |
+| Input | What it does |
 | --- | --- |
-| WASD / Arrow keys | Move the active Axie (or the **base** if you are moving a stack) |
-| `1` / `2` / `3` | Select that party slot |
-| `Tab` | Cycle 1 → 2 → 3 → 1 |
-| `Space` / Left click | Active ability (see §9) |
-| `F` | Toggle **Follow** ↔ **Park** on the two inactive Axies as a group (see §8) |
-| `E` | Stack if eligible; full dismount if already stacked |
-| Reset Bell (world object) | Room retry |
+| Collection click | Pick up to 3, then **Play** |
+| WASD | Move the selected Axie (or the form, if you are driving it) |
+| `1` `2` `3` | **Always pick a party Axie.** Absorbed slots jump to the form body. Switching *off* a form body **auto-parks it** where it stands (Room 3). |
+| `Tab` | Cycle visible Axies (skips absorbed) |
+| `Z` | **Bear** — plates / slam |
+| `X` | **Cat** — slash |
+| `C` | **Hawk** — fly + dart (vines pits) |
+| `Space` / click | Kit of the body you are driving |
+| `F` | Follow ↔ Park the two inactives as a group |
+| `E` | Fuse nearest ally (3 energy) / add the third (3) / split (0) |
+| Reset Bell | Room retry (+10s, restore `energyOnRoomEnter`, split) |
 
-No Shift-as-action. No dedicated morph key.
+Form keys work even while you drive the leftover unfused Axie. HUD while fused: **`Z Bear    X Cat    C Hawk`**. Unfused HUD: `E fuse  ·  then Z Bear / X Cat / C Hawk`.
 
-**HUD (always on):**  
-Active name + role, energy (integer), room index, run timer, three slot portraits with Parked / Follow / Stacked badges, stack `heightTier` if > 1.
+`1`/`2`/`3` **never** change form. That duplication is cut.
 
 ---
 
 ## 8. Party states (LOCK)
 
-Every Axie is always in exactly one spatial state:
-
 | State | Behavior |
 | --- | --- |
-| **Active** | Player input. |
-| **Follow** | Loose tether behind the active leader. Stop at last safe tile before pits. Path around solids. Do not enter a new room until the door is open and the leader has crossed; then path through. |
-| **Park** | Anchored. Zero locomotion. Can hold a pressure plate after the leader leaves through a door (**Room Transition Rule**). |
-| **Stacked (rider)** | No independent collider. Transform slaved to carrier. |
-| **Stacked (base)** | Single world collider for the whole totem. Moves the stack. |
-
-`F` toggles Follow ↔ Park for **both** inactive Axies. It does not unstack. Remember each Axie’s Follow/Park preference across a full dismount.
-
-Followers never hover a chasm. A parked Scout over a pit is illegal: snap to last safe tile.
+| Active | Input. |
+| Follow | Tether. No pit hover. |
+| Park | Anchored. Holds a plate after a door. Auto-applied to a form body when you swap off it. |
+| Fused host | One collider. Form is Bear, Cat, or Hawk. Badge PARK if left on a plate. |
+| Absorbed | Hidden. Its slot key selects the form body. |
 
 ---
 
-## 9. Abilities and energy (LOCK)
+## 9. Jobs, forms, lineage, parts (LOCK)
 
-**Starting pool:** 100 energy per run.  
-**Passive movement:** 0.  
-**Swap / Tab / Park / Stack / Dismount:** 0.  
-**No regen.**
+**Energy:** 100. No regen. Move / swap / park / split = 0. Fuse = 3 per join. Form switch = 1 if you have energy, **never blocked at 0**.
 
-| Role | Trait / passive | Ability (Space / Click) | Cost | Range / area |
+### Unfused class jobs (still work — the easy mixed path)
+
+| Class | Job |
+| --- | --- |
+| Plant (also Reptile, Dusk if present) | Heavy plate, slam (2, cactus → 1) |
+| Beast (also Bug, Mech) | Slash brambles (1), sprint |
+| Bird (also Aquatic, Dawn) | Hover, dart (2) |
+
+### Druidform — any 2 or 3, any classes (the any-trio path)
+
+Default form on fuse matches the host’s lineage (Plant→Bear, Beast→Cat, Bird→Hawk). Then **`Z`/`X`/`C`** switch.
+
+| Form | Key | Kit | Native lineage (score 3) | Off-lineage (score 1) |
 | --- | --- | --- | --- | --- |
-| Tank (Plant) | Heavy mass (depresses heavy plates). Hazard / spike / thorn immunity. | **Root Slam** — stun adjacent pests; lock *timed* switches only | 2 | Melee AoE, 48px circle |
-| Striker (Beast) | +25% sprint | **Ronin Slash** — cut brambles; break cracked pots / walls | 1 | Forward arc, 64px reach |
-| Scout (Bird) | Hover: may cross mud and chasms **only while Scout is the unstacked active unit** | **Feather Dart** — line-of-sight projectile | 2 | 350px LOS |
+| **Bear** | `Z` | Slam; presses plates / boss anchor | Plant, Reptile, Dusk | everyone else |
+| **Cat** | `X` | Slash | Beast, Bug, Mech | everyone else |
+| **Hawk** | `C` | Hover + dart; **always** Seed-vines pits so a leftover ally can follow | Bird, Aquatic, Dawn | everyone else |
 
-**Plates vs slam (LOCK):**  
-Heavy stone plates require **Tank mass standing on the cell** (Plant as unstacked occupant **or** Plant as stack **base**). Root Slam does **not** substitute for parking on a heavy plate. Slam may lock a separately tagged `timedSwitch`.
+**Form rating** = sum of lineage scores in the pile (3 or 1 per body).
 
-**While stacked (LOCK):**  
-Space fires the **top** Axie’s ability only. Spawn origin is the top sprite. Slash / slam / dart still use that role’s numbers. If the player presses Space and the top role is not the one they expected, the input still spends that top ability’s cost.
+**×2 / ×3**
+
+| | ×2 | ×3 |
+| --- | --- | --- |
+| Move | ×1.25 | ×1.5 |
+| Ability range | ×1.25 | ×1.5 |
+| Fuse clock | 8s | 14s |
+
+Plant+Bird in the pile: **+4s** (Dawn bonus). JSON parts add +2s each (pumpkin, pigeon-post, swallow).
+
+**Bear — time to get across**  
+After a Bear steps off a heavy plate, the gate stays down `max(2.0s, 0.4s × Bear rating)`. Any Bear can cross; heavier piles get more time. Unfused Plant **parked** still holds forever.
+
+**Cat — less energy**  
+Slash cost = `max(1, 2 − Cat-lineage count)`. Three Beasts → 1. Three Plants → 2.
+
+**Hawk — fly faster**  
+Hover speed × `(1 + 0.15 × flyer count)`. Dart cost 2, or **1** if at least one flyer is in the pile. Three Plants can Hawk; they fly at ×1.0 and pay 2 per dart. Hawk dart **always** vines pit tiles it crosses.
+
+### Parts (from JSON)
+
+| Part | Effect |
+| --- | --- |
+| cactus horn on a Plant in the pile | Bear slam cost −1 |
+| imp horn on a Beast in the pile | Cat slash range ×1.25 |
+| cuckoo horn | Hawk dart range ×1.25 |
+| ronin back | extra sprint on that body |
+| pumpkin / pigeon-post / swallow | +2s Druidform |
 
 ---
 
 ## 10. Scoring and failure (LOCK)
 
-**Primary score:** energy remaining when the Totem of Lunacia is activated in Room 5.  
-**Tie-breaker:** run time (faster wins). Visible timer on HUD.  
-**Optional routing:** 2–3 cracked walls that spend 1 energy to skip a longer path, so optimal energy is a real plan.
+Primary: energy remaining at shrine. Tie-break: time.
 
-### Fail states
-
-| Event | Result |
+| Fail | Result |
 | --- | --- |
-| Energy reaches 0 | Exhaustion screen. **Try Room Again** = same as Reset Bell for the current room. |
-| Any Axie (or the stack) falls into a pit | All three snap to last safe tile. Stack breaks. **−3 energy once** (not per body). |
-| Softlock | Every room has a Reset Bell. |
-
-### Reset Bell
-
-- Restore energy to `energyOnRoomEnter` (snapshot when the active Axie finished entering this room).  
-- Reset this room’s switches, breakables, bridges, pests, and local parks.  
-- Axies parked in **other** rooms stay.  
-- Add **+10 seconds** to the run timer.
+| Energy 0 | Exhaustion (still to ship). Retry room = Bell |
+| Pit | Snap, split, −3 once |
+| Softlock | Reset Bell every room |
 
 ---
 
-## 11. Totem stacking (LOCK)
+## 11. Fusion rules (LOCK)
 
-Stacking is **zero-physics parenting**, not rigid-body balance.
+- Nearest ally within 40px. Any classes.  
+- ×2 costs 3. Adding the third costs 3 more and refreshes the clock.  
+- `Z`/`X`/`C` change form (even while driving the leftover Axie).  
+- Swapping off the form with `1`/`2`/`3` **parks** it.  
+- Split: guests pop 32px, cost 0. Timer and pits also split.
 
-### Build
-
-- Active Axie is the **rider**.  
-- Nearest ally within **40px** is the **carrier**.  
-- `E` parents the rider **directly above** the carrier (`y - 28px`).  
-- Rider independent hitbox **disabled**. Rider transform slaved to carrier.  
-- To build Plant → Beast → Bird: stand/park Plant, swap to Beast, `E`, swap to Bird, `E`.
-
-### Height
-
-```
-heightTier: 1 | 2 | 3
-```
-
-- Ground / unstacked = **1** (that Axie is its own base).  
-- Two-body stack = **2**.  
-- Full totem = **3** (top Axie).
-
-### Interactive objects
-
-Objects declare `targetTier`.  
-An ability or projectile **only** resolves if `attacker.heightTier === targetTier`.
-
-| Object | `targetTier` |
+| Object | Accepts |
 | --- | --- |
-| Room 2 eye-beacon | **1** |
-| Room 4 pillar crystal | **3** |
-| Room 5 boss weak eye | **3** (fallback **2** if time-cut) |
-
-### Kinetic properties
-
-- **Base** writes surface physics. Plant base → whole stack has spike / thorn immunity and triggers heavy plates. Non-Plant base → no heavy plate.  
-- **Top** writes offense origin and which ability Space fires. Scout on top of a Tier-3 stack originates the dart from Tier 3 (clears low blockers, hits high eyes).  
-- Hover is **not** inherited. If Scout is not the unstacked mover, chasms still fail the stack.
-
-### Dismount
-
-`E` while already stacked **collapses the entire totem**:
-
-- Top unit pops **32px backward**.  
-- All units return to `heightTier: 1`.  
-- Follow/Park flags restore.
-
-No single-layer peel in R1.
-
-### Rooms and stacks
-
-- A stack **cannot straddle two rooms**. Crossing a door moves the whole totem.  
-- A **parked, unstacked** Tank may remain on a plate in the previous room.
-
-### Fall
-
-One −3 energy, full collapse, snap all three to last safe tile.
+| Room 1 brambles | Unfused Beast **or** Cat |
+| Room 2 eye | Unfused Bird **or** Hawk |
+| Room 3 plate / Room 5 anchor | Unfused Plant **or** Bear |
+| Room 4 thorn gate | Unfused Beast on the landing **or** Cat |
+| Room 4 crystal | Hawk (optional alcove, not the exit) |
+| Room 5 eye | Hawk |
+| Room 5 core | Unfused Beast **or** Cat |
 
 ---
 
-## 12. Dungeon — Round 1 scope (LOCK)
+## 12. Dungeon (LOCK)
 
-**Five rooms. Target clean run: 3–4 minutes.**  
-Single dungeon. No hub. No shops.
+Five rooms, 3–4 minutes. **Multiple paths.** Three of one class is a supported route.
 
-### Room 1 — Entry Hall (teach move + slash)
+### Collection
 
-- WASD + `1/2/3`.  
-- Bramble gate. Only Ronin Slash opens it.  
-- Reset Bell in view.  
-- Goal: prove Striker destruction.
+Nine cards from the JSON. Pick three. Copy: *Any 3 can finish. 1/2/3 pick Axies. After fuse: Z Bear, X Cat, C Hawk.* Play-again returns here.
 
-### Room 2 — The Chasm (teach Scout)
+### Room 1 — Cat / Beast
 
-- Gap the Tank and Striker cannot cross.  
-- Scout hovers the chasm.  
-- Eye-beacon: `targetTier: 1`, Feather Dart.  
-- Hit lowers a bridge so the others can cross.  
-- Goal: prove hover + dart without a stack.
+Wide bramble doorway. Unfused Beast slash **or** fuse Cat (`X`).
 
-### Room 3 — Dual Weight Vault (teach Park)
+### Room 2 — Hawk / Bird (fly + dart)
 
-- Heavy plate in view of a sealed gate.  
-- Park Tank (`F`) on the plate.  
-- Swap to Striker, walk through, hit the release lever.  
-- Room Transition Rule on display if the lever is past a threshold.  
-- Goal: prove spatial presence and `F`.
+**Wide 3-tile chasm.** Unfused Bird hover+dart **or** fuse Hawk (`C`). Eye labeled BIRD; Hawk still counts. Hit lowers a **bridge** so leftovers can walk.
 
-### Room 4 — The Totem Pillar (teach stack)
+### Room 3 — Bear / Plant (park + swap)
 
-- Central pillar, crystal `targetTier: 3`.  
-- Player builds a 3-tier totem (Plant base recommended for a floor hazard ring).  
-- Scout on top darts or the top role interacts with the crystal.  
-- Goal: prove parenting, tiers, and base/top split.
+Wall + gate. Two legal paths:
 
-### Room 5 — Boss Chamber, Corrupted Treant (puzzle-boss, not an arena)
+1. Park an unfused Plant (`F`), walk another through, pull the lever.  
+2. Fuse **two** as Bear (`Z`), stand on the plate, press the leftover’s `1`/`2`/`3` — Bear **auto-parks** — walk through, pull the lever.
 
-Scripted three-beat encounter. No HP sponge.
+If all three are fused there is no leftover; then the 2s+ hold-timer race is the fallback.
 
-1. Tank anchors the root whip (stand on the anchor cell, or one Root Slam if tagged `timedSwitch`).  
-2. Scout darts the weak eye (`targetTier: 3` if a totem is required; cut to 1 or 2 if day 8 is late).  
-3. Striker slashes the exposed core **once**.
+### Room 4 — Hawk then Cat (not a second Room 2)
 
-Then the **Totem of Lunacia** accepts activation (walk into shrine + `E` or auto after core break).
+**Narrow 2-tile pit** (not Room 2’s three). Hawk (`C`) flies it. On the landing, a **thorn gate** (brambles at the corridor) blocks the east door — switch to **Cat (`X`)** and slash. Optional HAWK crystal sits in a north-east alcove, off the critical path.
 
-**Win:** purify shrine → victory screen.
+This room teaches **form switch after a crossing**. Room 2 does not.
 
-### Victory screen (R1)
+### Room 5 — all three forms
 
-- Energy remaining (primary score)  
-- Time (tie-breaker)  
-- **+250 AXP (Simulated)**  
-- One line: *AXP accumulation → Ascension is the official Axie Core loop this dungeon feeds.*  
-- Copy-able score string for manual leaderboard / screenshot.
+1. Hawk-dart the eye (`C`).  
+2. Bear on the anchor (`Z`).  
+3. Cat-slash the core (`X`).  
 
-No live global leaderboard required in R1. Document the metric.
+Same pile can `C` → `Z` → `X`. Or park/swap leftovers. Or split and use unfused jobs if you brought those classes.
+
+### Victory
+
+Energy, time, +250 AXP (Simulated), Ascension line, copyable score. Play again → collection.
 
 ---
 
-## 13. Axie Core — what R1 actually ships vs what it claims
+## 13. Axie Core
 
-| Claim | R1 implementation | Why it scores |
-| --- | --- | --- |
-| Fireteam of Axies | Three named starters on screen at once | Squad size matches Axie |
-| Core loop | Victory screen **+250 AXP (Simulated)** and copy about Ascension | Shows AXP as the sink for play time |
-| Ownership pipeline | Mock Wallet JSON profiles | Proves a data slot for real IDs later |
-| Genetics → role | Documented only | Avoids 13-day gene bugs |
-| Collectibles | Hidden path + one lore shrine (cosmetic) | Optional; no stat swing |
+Official prompt: *what would make a player seek out a particular Axie for a specific purpose in your game?*
 
-**Collectibles (R1):** one optional off-path shrine. Cosmetic flavor only.  
-**Collectibles (R2 doc):** Origin / Mystic / Shiny auras and optional Mastery Shrines. No combat stat change.
+R1 answer:
+
+- **Class:** Bear hold, Cat cost, Hawk speed.  
+- **That exact body:** cactus, imp, ronin, pumpkin, pigeon-post, swallow.  
+- **How many:** ×3 is strictly better than ×2.  
+- **Mono is allowed:** 3 Plants clear; mixed keeps energy.  
+- **Tokens not required. No wallet.**
+
+| Claim | R1 |
+| --- | --- |
+| Seek a particular Axie | Pick-3 + lineage + parts + form |
+| Fireteam | Three owned bodies; fuse spends them |
+| Core loop | +250 AXP (Simulated) |
+| Ownership | Static JSON from a real address |
+| Combinations | Any 2/3 → Bear / Cat / Hawk |
 
 ---
 
 ## 14. Tech (LOCK)
 
-| Item | Choice |
+Vite + Phaser 3 + TypeScript. Arcade physics. `owned-axies.json` imported at build time. No Market, mixer, or wallet in R1.
+
+| Resource | This project |
 | --- | --- |
-| Stack | Vite + Phaser 3 + TypeScript |
-| Physics | Arcade / kinematic. **No** rigid-body stack. |
-| Map | Tiled or equivalent 32px tilemap |
-| Hosting | GitHub Pages or Vercel, wallet-free, opens in a new tab |
-| Art days 1–3 | Colored primitive bodies (green / orange / blue ellipses) |
-| Art day 4+ | Static 2D starter stills if available from the Vibeathon kit; squash-stretch tweens for polish. No Spine runtime in R1. |
-| Audio | Optional SFX; mute toggle |
+| Origins Assets Kit | Optional stills |
+| Animated 3D / Three.js mixer (beta) / Unity mixers | Vision only |
 
-### Implementation notes
-
-- Snapshot `energyOnRoomEnter` in the room-enter callback.  
-- Give each Axie `{ slot, role, followPark, heightTier, mountedTo }`.  
-- Stack = set parent, disable rider body, grow base body height or use a single stack collider.  
-- Abilities are short-lived zones or a hitscan / small sprite for the dart.  
-- Seeds / RNG off. Fixed dungeon so scores compare.
+Each Axie: `{ slot, id, axieClass, parts, followPark, guests[], absorbedBy, form }`.
 
 ---
 
-## 15. Build order (13-day)
+## 15. Build status
 
-1. Boot Phaser, one room, one body, WASD, energy HUD.  
-2. Three bodies, slot select, follow tether, `F` park.  
-3. Heavy plate + gate (Room 3 logic).  
-4. Parent stack + `heightTier` + one Tier-3 crystal.  
-5. Slash vs bramble (Room 1).  
-6. Chasm + hover + Tier-1 eye + bridge (Room 2).  
-7. Stitch five rooms, door camera, Reset Bell, energy snapshot.  
-8. Room 5 as three scripted beats + victory / AXP screen.  
-9. Replace primitives with stills; juice; first-play text.  
-10. Buffer. Cut boss totem requirement before cutting park or stack.
+**Shipped in the prototype**
 
-**Do not start in R1:** Three.js / Unity mixer, Ronin read, part decoding, daily seeds, landowner shrines, shaders beyond a simple tint.
+- Collection pick-3 from static JSON  
+- Five rooms, park, fuse ×2/×3  
+- Bear / Cat / Hawk on `Z`/`X`/`C`  
+- `1`/`2`/`3` always pick Axies; swap-off auto-parks the form  
+- Lineage stats, 2s floor on Bear hold, Hawk always vines  
+- Room 4 thorn gate (Hawk then Cat)  
+- Boss beats + victory AXP  
+- Any trio can finish  
 
----
+**Still R1 polish**
 
-## 16. Product vision — Round 2 and production
+1. Playtest Room 4 + a mixed run (not done by the designer yet).  
+2. Exhaustion screen at energy 0.  
+3. First-play blurb already on collection; keep it short.  
+4. Juice (slash / slam / dart / fuse pops).  
+5. Origins stills if time.  
 
-### Week 2 (if finalist)
-
-- Mixer (or official 2D mixer) renders **three** real Axie IDs into the three slots.  
-- Player pastes IDs or a public Ronin address.  
-- Fewer than three IDs → remaining slots stay Olek / Buba / Puffy.  
-- Roles still mapped by a simple rule (body class → Tank / Striker / Scout) until part-hybrid ships.
-
-### Month 3 (ecosystem)
-
-- **True part inheritance:** the six on-chain parts of each owned Axie modify mass, break power, hover distance, and ability kit. Party of three owned Axies, not one hero plus escorts.  
-- **Daily procedural ruins:** seeded shrines. Lunacia landowners host instances on plots. Clears under par energy pay AXP and off-chain craft materials.  
-- Optional approved Sky Mavis hooks only after the loop is fun without a wallet.
-
-No winner is entitled to this path; it is the credible Core fit for judges.
+**Do not start:** live Market, mixers, wallet, totem stacking.
 
 ---
 
-## 17. Submission checklist (Vibeathon)
+## 16. Vision
+
+Rebuild the JSON from a public address at build time. Named bonuses for Mech (Beast+Bug as Cat) and Dusk (Plant+Reptile as Bear). Mixer later. No default starters if IDs are missing — pick screen stays empty.
+
+---
+
+## 17. Submission checklist
 
 - [ ] Title: Axie Druidform — Totem of Lunacia  
-- [ ] One-sentence pitch (§2)  
-- [ ] Vision sentence (§1) in short + full description  
-- [ ] Thumbnail  
-- [ ] Playable link (new tab)  
-- [ ] Controls + first-play instructions (paste §7 + “Room 1 slash the brambles”)  
-- [ ] Repo link (may stay private)  
-- [ ] Fallback demo video  
-- [ ] AI tools used  
-- [ ] Axie Core paragraph (§13 + +250 AXP screen)  
-- [ ] Register by Sep 7; R1 build window Sep 8–21  
+- [ ] Pitch §2 and vision §1  
+- [ ] Playable link  
+- [ ] First-play §18  
+- [ ] Axie Core §13 + AXP screen  
+- [ ] No wallet required  
+- [ ] Thumbnail, repo, fallback video, AI tools  
 
 ---
 
 ## 18. First-play instructions (paste into the form)
 
-You command three Axies at once. `1` Olek the Tank, `2` Buba the Striker, `3` Puffy the Scout. `Tab` cycles.  
-`WASD` moves the selected Axie. `F` parks the others on switches. `E` stacks an Axie onto a nearby ally to build a Totem; `E` again takes the tower apart.  
-`Space` uses that role’s tool (slam, slash, or dart) and spends energy.  
-Finish with as much energy as you can. Time is only a tie-break.  
-If you get stuck, hit the Reset Bell in the room.
+Pick any 3 from the collection. No wallet. **Any trio can finish the shrine.** Mixed Plant + Beast + Bird is easiest. Three of one class still clears.  
+`WASD` move. `1` `2` `3` pick an Axie (`Tab` cycles). `F` parks the others. `E` fuses a nearby ally.  
+**Forms (not 1/2/3):** `Z` Bear (plates), `X` Cat (slash), `C` Hawk (fly + dart). Switching off the form with `1`/`2`/`3` parks it. `E` again splits.  
+Room 3: fuse two as Bear, stand on the plate, select the leftover Axie, walk through.  
+Room 4: Hawk the pit, Cat the thorns.  
+`Space` uses that job. Energy remaining is the score. Reset Bell if stuck.
 
 ---
 
-## 19. Open issues that are explicitly out of scope
+## 19. Out of scope
 
-- Mixed-gene role calculation  
-- Per-Axie `F` (only group toggle)  
-- Partial dismount  
-- Live leaderboard backend  
-- Damage-over-time boss  
-- Multiplayer  
-
-If an AI coding tool proposes any of the above, reject it.
+Default starters · wallet connect · live Market / API keys · totem stacking · `1`/`2`/`3` as form keys · single-hero morph · requiring Mech/Dusk to finish R1 · per-Axie `F` · partial split · live leaderboard · treating Discord Core as a checklist.
 
 ---
 
@@ -397,4 +349,8 @@ If an AI coding tool proposes any of the above, reject it.
 
 | Date | Change |
 | --- | --- |
-| 2026-09-07 | Locked 3-owned-Axie fireteam fantasy; swap ≠ morph; four stack rules; 5-room list; energy 100; simulated AXP; Phaser R1. |
+| 2026-09-10 | Synced to prototype: `Z`/`X`/`C` forms, `1`/`2`/`3` always Axies, auto-park on swap-off, any trio can finish, Room 4 is Hawk-then-Cat thorn gate (not a second dart chasm), Hawk always vines, Bear hold floor 2s, form switch never blocked at 0 energy. |
+| 2026-09-09 | Druidform is Bear / Cat / Hawk. Lineage stats. 3-same-class route. |
+| 2026-09-09 | Static `owned-axies.json` pick-3 from 0xdf8b…27c4. |
+| 2026-09-09 | Totem stacking cut. |
+| 2026-09-07 | Original Phaser R1 lock. |

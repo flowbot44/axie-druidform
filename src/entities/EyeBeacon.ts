@@ -3,16 +3,17 @@ import {
   EYE_COLOR_IDLE,
   EYE_COLOR_SOLVED,
   EYE_COLOR_WRONG,
-  EYE_TARGET_TIER,
 } from "../config/constants.ts";
+import type { Axie } from "./Axie.ts";
+
+export type EyeGate = "bird-or-hawk" | "hawk";
 
 /**
- * Eye-beacon — Room 2 interactable (GDD §11, §12).
- * A dart resolves only when attacker.heightTier === targetTier (1).
+ * Room 2: unfused Bird or Hawk. Room 5: Hawk only.
  */
 export class EyeBeacon {
   public readonly sprite: Phaser.GameObjects.Arc;
-  public readonly targetTier: number;
+  public readonly gate: EyeGate;
 
   private readonly scene: Phaser.Scene;
   private readonly pupil: Phaser.GameObjects.Arc;
@@ -25,11 +26,11 @@ export class EyeBeacon {
     x: number,
     y: number,
     onSolved: () => void,
-    targetTier = EYE_TARGET_TIER,
+    gate: EyeGate = "bird-or-hawk",
   ) {
     this.scene = scene;
     this.onSolved = onSolved;
-    this.targetTier = targetTier;
+    this.gate = gate;
 
     this.sprite = scene.add.circle(x, y, 12, EYE_COLOR_IDLE);
     this.sprite.setStrokeStyle(2, 0xe0f7fa);
@@ -39,7 +40,7 @@ export class EyeBeacon {
     this.pupil.setDepth(0.55);
 
     this.label = scene.add
-      .text(x, y - 22, `T${this.targetTier}`, {
+      .text(x, y - 22, gate === "hawk" ? "HAWK" : "BIRD", {
         fontSize: "10px",
         color: "#e0f7fa",
         fontFamily: "monospace",
@@ -53,10 +54,12 @@ export class EyeBeacon {
     return this.solved;
   }
 
-  /** Called by a dart that reached this eye. */
-  receiveHit(heightTier: number): boolean {
+  receiveHit(attacker: Axie): boolean {
     if (this.solved) return false;
-    if (heightTier !== this.targetTier) {
+    const hawk = attacker.isHawk();
+    const bird = attacker.axieClass === "Bird" && !attacker.isDruidHost();
+    const ok = this.gate === "hawk" ? hawk : hawk || bird;
+    if (!ok) {
       this.flashWrong();
       return false;
     }
@@ -70,7 +73,7 @@ export class EyeBeacon {
     this.sprite.setAlpha(1);
     this.sprite.setFillStyle(EYE_COLOR_IDLE);
     this.sprite.setStrokeStyle(2, 0xe0f7fa);
-    this.label.setText(`T${this.targetTier}`);
+    this.label.setText(this.gate === "hawk" ? "HAWK" : "BIRD");
     this.label.setColor("#e0f7fa");
   }
 

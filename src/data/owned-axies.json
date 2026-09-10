@@ -1,0 +1,402 @@
+{
+  "owner": "0xdf8b35668c8fcf82b1d1707875c98cd05b6927c4",
+  "note": "Static snapshot of a puzzle subset (3 Plant, 3 Beast, 3 Bird) from this address. No live Market call.",
+  "axies": [
+    {
+      "id": "10865685",
+      "name": "Axie #10865685",
+      "class": "Plant",
+      "image": "https://assets.axieinfinity.com/axies/10865685/axie/axie-full-transparent.png",
+      "parts": [
+        {
+          "id": "eyes-topaz",
+          "name": "Topaz",
+          "type": "Eyes",
+          "class": "Reptile"
+        },
+        {
+          "id": "ears-clover-2",
+          "name": "Clover",
+          "type": "Ears",
+          "class": "Plant"
+        },
+        {
+          "id": "mouth-zigzag",
+          "name": "Zigzag",
+          "type": "Mouth",
+          "class": "Plant"
+        },
+        {
+          "id": "horn-cactus",
+          "name": "Cactus",
+          "type": "Horn",
+          "class": "Plant"
+        },
+        {
+          "id": "back-watering-can",
+          "name": "Watering Can",
+          "type": "Back",
+          "class": "Plant"
+        },
+        {
+          "id": "tail-hot-butt",
+          "name": "Hot Butt",
+          "type": "Tail",
+          "class": "Plant"
+        }
+      ]
+    },
+    {
+      "id": "6932506",
+      "name": "T_1",
+      "class": "Plant",
+      "image": "https://assets.axieinfinity.com/axies/6932506/axie/axie-full-transparent.png",
+      "parts": [
+        {
+          "id": "eyes-blossom",
+          "name": "Blossom",
+          "type": "Eyes",
+          "class": "Plant"
+        },
+        {
+          "id": "ears-lotus",
+          "name": "Lotus",
+          "type": "Ears",
+          "class": "Plant"
+        },
+        {
+          "id": "mouth-herbivore",
+          "name": "Herbivore",
+          "type": "Mouth",
+          "class": "Plant"
+        },
+        {
+          "id": "horn-cactus",
+          "name": "Cactus",
+          "type": "Horn",
+          "class": "Plant"
+        },
+        {
+          "id": "back-pumpkin",
+          "name": "Pumpkin",
+          "type": "Back",
+          "class": "Plant"
+        },
+        {
+          "id": "tail-hot-butt",
+          "name": "Hot Butt",
+          "type": "Tail",
+          "class": "Plant"
+        }
+      ]
+    },
+    {
+      "id": "4060820",
+      "name": "BBP PLANT2",
+      "class": "Plant",
+      "image": "https://assets.axieinfinity.com/axies/4060820/axie/axie-full-transparent.png",
+      "parts": [
+        {
+          "id": "eyes-papi",
+          "name": "Papi",
+          "type": "Eyes",
+          "class": "Plant"
+        },
+        {
+          "id": "ears-clover",
+          "name": "Clover",
+          "type": "Ears",
+          "class": "Plant"
+        },
+        {
+          "id": "mouth-herbivore",
+          "name": "Herbivore",
+          "type": "Mouth",
+          "class": "Plant"
+        },
+        {
+          "id": "horn-rose-bud",
+          "name": "Rose Bud",
+          "type": "Horn",
+          "class": "Plant"
+        },
+        {
+          "id": "back-pumpkin",
+          "name": "Pumpkin",
+          "type": "Back",
+          "class": "Plant"
+        },
+        {
+          "id": "tail-carrot",
+          "name": "Carrot",
+          "type": "Tail",
+          "class": "Plant"
+        }
+      ]
+    },
+    {
+      "id": "95221",
+      "name": "Axie #95221",
+      "class": "Beast",
+      "image": "https://assets.axieinfinity.com/axies/95221/axie/axie-full-transparent.png",
+      "parts": [
+        {
+          "id": "eyes-chubby",
+          "name": "Chubby",
+          "type": "Eyes",
+          "class": "Beast"
+        },
+        {
+          "id": "ears-nut-cracker",
+          "name": "Nut Cracker",
+          "type": "Ears",
+          "class": "Beast"
+        },
+        {
+          "id": "mouth-herbivore",
+          "name": "Herbivore",
+          "type": "Mouth",
+          "class": "Plant"
+        },
+        {
+          "id": "horn-dual-blade",
+          "name": "Dual Blade",
+          "type": "Horn",
+          "class": "Beast"
+        },
+        {
+          "id": "back-croc",
+          "name": "Croc",
+          "type": "Back",
+          "class": "Reptile"
+        },
+        {
+          "id": "tail-nut-cracker",
+          "name": "Nut Cracker",
+          "type": "Tail",
+          "class": "Beast"
+        }
+      ]
+    },
+    {
+      "id": "4551303",
+      "name": "B2",
+      "class": "Beast",
+      "image": "https://assets.axieinfinity.com/axies/4551303/axie/axie-full-transparent.png",
+      "parts": [
+        {
+          "id": "eyes-chubby",
+          "name": "Chubby",
+          "type": "Eyes",
+          "class": "Beast"
+        },
+        {
+          "id": "ears-early-bird",
+          "name": "Early Bird",
+          "type": "Ears",
+          "class": "Bird"
+        },
+        {
+          "id": "mouth-nut-cracker",
+          "name": "Nut Cracker",
+          "type": "Mouth",
+          "class": "Beast"
+        },
+        {
+          "id": "horn-imp",
+          "name": "Imp",
+          "type": "Horn",
+          "class": "Beast"
+        },
+        {
+          "id": "back-ronin",
+          "name": "Ronin",
+          "type": "Back",
+          "class": "Beast"
+        },
+        {
+          "id": "tail-cottontail",
+          "name": "Cottontail",
+          "type": "Tail",
+          "class": "Beast"
+        }
+      ]
+    },
+    {
+      "id": "4919477",
+      "name": "Axie #4919477",
+      "class": "Beast",
+      "image": "https://assets.axieinfinity.com/axies/4919477/axie/axie-full-transparent.png",
+      "parts": [
+        {
+          "id": "eyes-zeal",
+          "name": "Zeal",
+          "type": "Eyes",
+          "class": "Beast"
+        },
+        {
+          "id": "ears-nut-cracker",
+          "name": "Nut Cracker",
+          "type": "Ears",
+          "class": "Beast"
+        },
+        {
+          "id": "mouth-nut-cracker",
+          "name": "Nut Cracker",
+          "type": "Mouth",
+          "class": "Beast"
+        },
+        {
+          "id": "horn-dual-blade",
+          "name": "Dual Blade",
+          "type": "Horn",
+          "class": "Beast"
+        },
+        {
+          "id": "back-hero",
+          "name": "Hero",
+          "type": "Back",
+          "class": "Beast"
+        },
+        {
+          "id": "tail-gerbil",
+          "name": "Gerbil",
+          "type": "Tail",
+          "class": "Beast"
+        }
+      ]
+    },
+    {
+      "id": "11070928",
+      "name": "Axie #11070928",
+      "class": "Bird",
+      "image": "https://assets.axieinfinity.com/axies/11070928/axie/axie-full-transparent.png",
+      "parts": [
+        {
+          "id": "eyes-mavis",
+          "name": "Mavis",
+          "type": "Eyes",
+          "class": "Bird"
+        },
+        {
+          "id": "ears-owl",
+          "name": "Owl",
+          "type": "Ears",
+          "class": "Bird"
+        },
+        {
+          "id": "mouth-little-owl",
+          "name": "Little Owl",
+          "type": "Mouth",
+          "class": "Bird"
+        },
+        {
+          "id": "horn-eggshell",
+          "name": "Eggshell",
+          "type": "Horn",
+          "class": "Bird"
+        },
+        {
+          "id": "back-pigeon-post",
+          "name": "Pigeon Post",
+          "type": "Back",
+          "class": "Bird"
+        },
+        {
+          "id": "tail-post-fight",
+          "name": "Post Fight",
+          "type": "Tail",
+          "class": "Bird"
+        }
+      ]
+    },
+    {
+      "id": "11367315",
+      "name": "Axie #11367315",
+      "class": "Bird",
+      "image": "https://assets.axieinfinity.com/axies/11367315/axie/axie-full-transparent.png",
+      "parts": [
+        {
+          "id": "eyes-chubby",
+          "name": "Chubby",
+          "type": "Eyes",
+          "class": "Beast"
+        },
+        {
+          "id": "ears-early-bird",
+          "name": "Early Bird",
+          "type": "Ears",
+          "class": "Bird"
+        },
+        {
+          "id": "mouth-pincer",
+          "name": "Pincer",
+          "type": "Mouth",
+          "class": "Bug"
+        },
+        {
+          "id": "horn-cerastes",
+          "name": "Cerastes",
+          "type": "Horn",
+          "class": "Reptile"
+        },
+        {
+          "id": "back-cupid",
+          "name": "Cupid",
+          "type": "Back",
+          "class": "Bird"
+        },
+        {
+          "id": "tail-swallow",
+          "name": "Swallow",
+          "type": "Tail",
+          "class": "Bird"
+        }
+      ]
+    },
+    {
+      "id": "12025435",
+      "name": "AOE Bird",
+      "class": "Bird",
+      "image": "https://assets.axieinfinity.com/axies/12025435/axie/axie-full-transparent.png",
+      "parts": [
+        {
+          "id": "eyes-kotaro",
+          "name": "Kotaro?",
+          "type": "Eyes",
+          "class": "Bug"
+        },
+        {
+          "id": "ears-earwing",
+          "name": "Earwing",
+          "type": "Ears",
+          "class": "Bug"
+        },
+        {
+          "id": "mouth-kotaro",
+          "name": "Kotaro",
+          "type": "Mouth",
+          "class": "Reptile"
+        },
+        {
+          "id": "horn-wing-horn-2",
+          "name": "Wing Horn",
+          "type": "Horn",
+          "class": "Bird"
+        },
+        {
+          "id": "back-tri-feather",
+          "name": "Tri Feather",
+          "type": "Back",
+          "class": "Bird"
+        },
+        {
+          "id": "tail-hot-butt",
+          "name": "Hot Butt",
+          "type": "Tail",
+          "class": "Plant"
+        }
+      ]
+    }
+  ]
+}

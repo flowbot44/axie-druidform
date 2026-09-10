@@ -1,20 +1,25 @@
 import Phaser from "phaser";
 import { Axie } from "../entities/Axie.ts";
 import {
-  PARTY,
   TILE_SIZE,
   ROOM_HEIGHT,
   FOLLOW_DISTANCE,
   FOLLOW_STOP_THRESHOLD,
   BREADCRUMB_INTERVAL,
-  STACK_RANGE,
-  STACK_Y_OFFSET,
-  DISMOUNT_POP,
-  PLAYER_SPEED,
+  FUSE_RANGE,
+  FUSE_COST,
+  FORM_SWITCH_COST,
+  SPLIT_POP,
+  DRUID_2_MS,
+  DRUID_3_MS,
+  DRUID_SYNERGY_MS,
   PIT_FALL_COST,
   ROOM_PX_W,
   roomIndexAt,
+  type PartyMember,
 } from "../config/constants.ts";
+import { partFuseBonusMs } from "../config/collection.ts";
+import { defaultFormFor, formLabel, type DruidForm } from "../config/forms.ts";
 
 interface Breadcrumb {
   x: number;
@@ -24,8 +29,7 @@ interface Breadcrumb {
 /**
  * PartyManager — owns all three Axies and drives party state.
  *
- * Handles slot selection, follow/park toggling, breadcrumb follow,
- * and totem stack / full dismount (GDD §8, §11).
+ * Slot select, follow/park, breadcrumb follow, any-2/3 Druidform fuse (GDD §8, §11).
  */
 export class PartyManager {
   private readonly scene: Phaser.Scene;
@@ -44,12 +48,10 @@ export class PartyManager {
     this.syncRegistry();
   }
 
-  // ── Public API ───────────────────────────────────────────────────────
-
   getActive(): Axie {
-    const active = this.axies.find((a) => a.slot === this.activeSlot);
-    if (!active) throw new Error(`No Axie in slot ${this.activeSlot}`);
-    return active;
+    const raw = this.axies.find((a) => a.slot === this.activeSlot);
+    if (!raw) throw new Error(`No Axie in slot ${this.activeSlot}`);
+    return raw.absorbedBy ?? raw;
   }
 
   getAxies(): Axie[] {
@@ -61,12 +63,20 @@ export class PartyManager {
   }
 
   selectSlot(slot: number): void {
-    if (slot < 1 || slot > 3 || slot === this.activeSlot) return;
+    if (slot < 1 || slot > 3) return;
+    const target = this.axies.find((a) => a.slot === slot);
+    if (!target) return;
+    const resolved = target.absorbedBy ?? target;
+    if (resolved.slot === this.activeSlot && !target.isAbsorbed()) return;
 
-    // Previously active Axie adopts the group follow/park state
-    this.getActive().followPark = this.groupFollowPark;
-
-    this.activeSlot = slot;
+    const previous = this.getActive();
+    // Leave a Druidform body where it stands (Room 3: park Bear, take the free Axie).
+    if (previous.isDruidHost() && previous !== resolved) {
+      previous.followPark = "park";
+    } else {
+      previous.followPark = this.groupFollowPark;
+    }
+    this.activeSlot = resolved.slot;
     this.trail = [];
     this.lastTrailPos = null;
     this.updateActiveVisuals();
@@ -74,29 +84,34 @@ export class PartyManager {
   }
 
   cycleSlot(): void {
-    this.selectSlot((this.activeSlot % 3) + 1);
+    for (let i = 1; i <= 3; i++) {
+      const next = ((this.activeSlot - 1 + i) % 3) + 1;
+      const axie = this.axies.find((a) => a.slot === next);
+      if (axie && !axie.isAbsorbed()) {
+        this.selectSlot(next);
+        return;
+      }
+    }
   }
 
-  /** Pit / mud query used to stop followers and skip hover-illegal tiles. */
   setHazardQuery(fn: (x: number, y: number) => boolean): void {
     this.isHazard = fn;
   }
 
-  /** Scout hover only while Puffy is the active, unstacked unit (GDD §9, §11). */
+  /** Unfused Bird, or Hawk form, only while active. */
   canHover(axie: Axie): boolean {
-    return (
-      axie.role === "Scout" &&
-      axie.slot === this.activeSlot &&
-      !axie.isInStack()
-    );
+    if (axie.isAbsorbed()) return false;
+    if (axie.slot !== this.activeSlot) return false;
+    if (axie.isHawk()) return true;
+    return axie.axieClass === "Bird" && !axie.isDruidHost();
   }
 
-  /** Toggle Follow ↔ Park for BOTH inactive Axies as a group (GDD §8). Does not unstack. */
   toggleFollowPark(): void {
     this.groupFollowPark =
       this.groupFollowPark === "follow" ? "park" : "follow";
 
     for (const axie of this.axies) {
+      if (axie.isAbsorbed()) continue;
       if (axie.slot !== this.activeSlot) {
         axie.followPark = this.groupFollowPark;
       }
@@ -104,54 +119,25 @@ export class PartyManager {
     this.syncRegistry();
   }
 
-  /**
-   * Drive the active Axie, or the **base** if the active unit is in a stack (GDD §7).
-   * Beast sprint applies only while Buba is the active, unstacked unit (GDD §6).
-   */
   moveActive(direction: { x: number; y: number }): void {
-    const active = this.getActive();
-    const mover = active.getBase();
-    if (active.isInStack()) {
-      mover.body.setVelocity(
-        direction.x * PLAYER_SPEED,
-        direction.y * PLAYER_SPEED,
-      );
-      if (direction.x !== 0 || direction.y !== 0) {
-        mover.lastFacing = { x: direction.x, y: direction.y };
-      }
-      return;
-    }
-    mover.move(direction);
+    this.getActive().move(direction);
   }
 
-  /**
-   * Attack origin is the stack **top**; facing comes from the driven base (GDD §11).
-   */
   getAttackContext(): {
     attacker: Axie;
     origin: { x: number; y: number };
     facing: { x: number; y: number };
   } {
-    const active = this.getActive();
-    const attacker = active.getTop();
-    const facingSource = active.isInStack() ? active.getBase() : active;
+    const attacker = this.getActive();
     return {
       attacker,
       origin: { x: attacker.sprite.x, y: attacker.sprite.y },
-      facing: this.facingOf(facingSource),
+      facing: this.facingOf(attacker),
     };
   }
 
-  /**
-   * `E` — mount onto the nearest ally within STACK_RANGE, or fully collapse
-   * the totem if the active Axie is already stacked (GDD §11).
-   */
-  /**
-   * Retry this room: dismount, snap local Axies to spawn, clear local parks.
-   * Axies parked in other rooms are left alone (GDD §10).
-   */
   resetLocalParty(roomIndex: number, spawnX: number, spawnY: number): void {
-    this.dismountIfStacked();
+    this.splitIfFused();
     const origin = (roomIndex - 1) * ROOM_PX_W;
     const offsets = [
       { x: 0, y: 0 },
@@ -175,57 +161,46 @@ export class PartyManager {
     this.syncRegistry();
   }
 
-  dismountIfStacked(): void {
+  splitIfFused(): void {
     for (const axie of this.axies) {
-      if (axie.isInStack() && !axie.mountedTo) {
-        this.fullDismount(axie);
+      if (axie.isDruidHost()) {
+        this.split(axie);
         return;
       }
     }
   }
 
-  tryStackOrDismount(): void {
+  tryFuseOrSplit(): void {
     const active = this.getActive();
-
-    if (active.isInStack()) {
-      this.fullDismount(active.getBase());
+    if (active.isDruidHost()) {
+      const extra =
+        active.fusionSize() < 3
+          ? this.nearestVisibleAlly(active, FUSE_RANGE)
+          : null;
+      if (extra) {
+        if (!this.spendFuseCost()) return;
+        this.addGuest(active, extra);
+        return;
+      }
+      this.split(active);
       return;
     }
 
-    const nearest = this.nearestAlly(active, STACK_RANGE);
+    const nearest = this.nearestVisibleAlly(active, FUSE_RANGE);
     if (!nearest) return;
-
-    const carrier = nearest.getTop();
-    if (carrier === active) return;
-    if (carrier.directRider) return;
-    if (carrier.heightTier >= 3) return;
-
-    this.mount(active, carrier);
+    if (!this.spendFuseCost()) return;
+    this.fuse(active, nearest);
   }
 
-  /** Call each frame after moving the active Axie. */
   update(): void {
-    const active = this.getActive();
-    const driven = active.getBase();
-
-    // ── Record breadcrumbs from the driven body's movement ─────────
+    const driven = this.getActive();
     this.recordBreadcrumb(driven);
 
-    // ── Move followers (skip riders; skip anyone in the active stack)
-    const followers = this.axies.filter((a) => a.slot !== this.activeSlot);
+    const followers = this.axies.filter(
+      (a) => a.slot !== driven.slot && !a.isAbsorbed(),
+    );
     let followIndex = 0;
     for (const follower of followers) {
-      if (follower.mountedTo) {
-        continue;
-      }
-
-      const inActiveStack = follower.getBase() === driven;
-      if (inActiveStack) {
-        // Player is driving this stack via moveActive — do not follow.
-        this.applyImmovable(follower, false);
-        continue;
-      }
-
       if (follower.followPark === "park") {
         follower.body.setVelocity(0, 0);
         this.applyImmovable(follower, true);
@@ -281,7 +256,6 @@ export class PartyManager {
           this.isHazard?.(targetX, targetY) ||
           blockedByDoor
         ) {
-          // GDD §8: no chasm hover; do not enter a room the leader hasn't.
           follower.body.setVelocity(0, 0);
         } else {
           follower.body.setVelocity(
@@ -296,36 +270,111 @@ export class PartyManager {
 
     this.applyImmovable(driven, false);
 
+    if (driven.isDruidHost() && this.scene.time.now >= driven.fuseUntil) {
+      this.split(driven);
+    }
+
     if (this.pitCooldownFrames > 0) this.pitCooldownFrames -= 1;
 
-    // ── Slave rider transforms to carriers, then sync labels ───────
-    this.syncStackTransforms();
     this.recordSafeTiles();
     this.resolveHazards();
     for (const axie of this.axies) {
       axie.syncVisuals();
     }
+    this.syncFuseHud();
   }
-
-  // ── Private ──────────────────────────────────────────────────────────
 
   private spawnParty(): void {
     const baseX = 3 * TILE_SIZE + TILE_SIZE / 2;
     const baseY = Math.floor(ROOM_HEIGHT / 2) * TILE_SIZE + TILE_SIZE / 2;
 
     const offsets = [
-      { x: 0, y: 0 }, // Olek — front
-      { x: -TILE_SIZE, y: Math.floor(TILE_SIZE * 0.5) }, // Buba — behind-below
-      { x: -TILE_SIZE, y: -Math.floor(TILE_SIZE * 0.5) }, // Puffy — behind-above
+      { x: 0, y: 0 },
+      { x: -TILE_SIZE, y: Math.floor(TILE_SIZE * 0.5) },
+      { x: -TILE_SIZE, y: -Math.floor(TILE_SIZE * 0.5) },
     ];
 
-    for (let i = 0; i < PARTY.length; i++) {
-      const member = PARTY[i]!;
+    const party = (this.scene.registry.get("party") as PartyMember[] | undefined) ?? [];
+    for (let i = 0; i < party.length; i++) {
+      const member = party[i]!;
       const offset = offsets[i]!;
       this.axies.push(
         new Axie(this.scene, baseX + offset.x, baseY + offset.y, member),
       );
     }
+  }
+
+  private spendFuseCost(): boolean {
+    const energy = (this.scene.registry.get("energy") as number) ?? 0;
+    if (energy < FUSE_COST) return false;
+    this.scene.registry.set("energy", energy - FUSE_COST);
+    return true;
+  }
+
+  private fuseDurationMs(host: Axie): number {
+    const base = host.fusionSize() >= 3 ? DRUID_3_MS : DRUID_2_MS;
+    const synergy = host.isDawnSynergy() ? DRUID_SYNERGY_MS : 0;
+    const parts = partFuseBonusMs([host, ...host.guests]);
+    return base + synergy + parts;
+  }
+
+  /** Form keys work even while you are driving the unfused leftover Axie. */
+  switchForm(form: DruidForm): void {
+    const host = this.axies.find((a) => a.isDruidHost());
+    if (!host || host.form === form) return;
+    const energy = (this.scene.registry.get("energy") as number) ?? 0;
+    if (energy >= FORM_SWITCH_COST) {
+      this.scene.registry.set("energy", energy - FORM_SWITCH_COST);
+    }
+    host.form = form;
+    host.applyDruidLook();
+    this.syncRegistry();
+  }
+
+  private refreshFuseTimer(host: Axie): void {
+    host.fuseUntil = this.scene.time.now + this.fuseDurationMs(host);
+    if (!host.form) host.beginForm(defaultFormFor(host.axieClass));
+    else host.applyDruidLook();
+  }
+
+  private fuse(host: Axie, guest: Axie): void {
+    this.addGuest(host, guest);
+    this.activeSlot = host.slot;
+    this.trail = [];
+    this.lastTrailPos = null;
+    this.updateActiveVisuals();
+  }
+
+  private addGuest(host: Axie, guest: Axie): void {
+    guest.absorbedBy = host;
+    host.guests.push(guest);
+    guest.setHidden(true);
+    this.refreshFuseTimer(host);
+    this.syncRegistry();
+  }
+
+  private split(host: Axie): void {
+    const guests = host.guests.slice();
+    if (guests.length === 0) return;
+
+    const facing = this.facingOf(host);
+    host.guests = [];
+    host.restoreLook();
+
+    for (let i = 0; i < guests.length; i++) {
+      const guest = guests[i]!;
+      const angle = Math.atan2(facing.y, facing.x) + Math.PI + (i - (guests.length - 1) / 2) * 0.7;
+      guest.absorbedBy = null;
+      guest.setHidden(false);
+      this.placeAt(
+        guest,
+        host.sprite.x + Math.cos(angle) * SPLIT_POP,
+        host.sprite.y + Math.sin(angle) * SPLIT_POP,
+      );
+    }
+    host.body.reset(host.sprite.x, host.sprite.y);
+    this.updateActiveVisuals();
+    this.syncRegistry();
   }
 
   private recordBreadcrumb(active: Axie): void {
@@ -344,7 +393,6 @@ export class PartyManager {
       this.trail.push(pos);
       this.lastTrailPos = { ...pos };
 
-      // Trim to prevent unbounded growth
       const maxCrumbs =
         Math.ceil((FOLLOW_DISTANCE * 3) / BREADCRUMB_INTERVAL) + 20;
       while (this.trail.length > maxCrumbs) {
@@ -353,82 +401,11 @@ export class PartyManager {
     }
   }
 
-  private mount(rider: Axie, carrier: Axie): void {
-    rider.mountedTo = carrier;
-    carrier.directRider = rider;
-    rider.setBodyEnabled(false);
-    this.recomputeTiers(carrier.getBase());
-    this.syncStackTransforms();
-    this.syncRegistry();
-  }
-
-  /**
-   * Collapse the entire totem. Top pops DISMOUNT_POP px backward.
-   * Follow/Park flags are left as-is (GDD §11).
-   */
-  private fullDismount(base: Axie): void {
-    const top = base.getTop();
-    const members: Axie[] = [];
-    let node: Axie | null = base;
-    while (node) {
-      members.push(node);
-      node = node.directRider;
-    }
-
-    const facing = this.facingOf(base);
-    const popX = top.sprite.x - facing.x * DISMOUNT_POP;
-    const popY = top.sprite.y - facing.y * DISMOUNT_POP;
-
-    for (const axie of members) {
-      axie.mountedTo = null;
-      axie.directRider = null;
-      axie.heightTier = 1;
-      axie.setBodyEnabled(true);
-      axie.applyStackDepth();
-    }
-
-    top.sprite.setPosition(popX, popY);
-    for (const axie of members) {
-      axie.body.reset(axie.sprite.x, axie.sprite.y);
-      axie.syncVisuals();
-    }
-
-    this.syncRegistry();
-  }
-
-  private recomputeTiers(base: Axie): void {
-    let tier = 1;
-    let node: Axie | null = base;
-    while (node) {
-      node.heightTier = tier;
-      node.applyStackDepth();
-      node = node.directRider;
-      tier += 1;
-    }
-  }
-
-  /** Place each rider at carrier (x, y - STACK_Y_OFFSET). */
-  private syncStackTransforms(): void {
-    for (const axie of this.axies) {
-      if (axie.mountedTo) continue;
-      let carrier = axie;
-      let rider = carrier.directRider;
-      while (rider) {
-        rider.sprite.setPosition(
-          carrier.sprite.x,
-          carrier.sprite.y - STACK_Y_OFFSET,
-        );
-        carrier = rider;
-        rider = carrier.directRider;
-      }
-    }
-  }
-
-  private nearestAlly(from: Axie, range: number): Axie | null {
+  private nearestVisibleAlly(from: Axie, range: number): Axie | null {
     let best: Axie | null = null;
     let bestDist = range;
     for (const other of this.axies) {
-      if (other === from) continue;
+      if (other === from || other.isAbsorbed()) continue;
       const dist = Phaser.Math.Distance.Between(
         from.sprite.x,
         from.sprite.y,
@@ -457,7 +434,7 @@ export class PartyManager {
 
   private recordSafeTiles(): void {
     for (const axie of this.axies) {
-      if (axie.mountedTo) continue;
+      if (axie.isAbsorbed()) continue;
       if (this.isHazard?.(axie.sprite.x, axie.sprite.y)) continue;
       axie.lastSafe = { x: axie.sprite.x, y: axie.sprite.y };
     }
@@ -468,12 +445,11 @@ export class PartyManager {
     if (this.pitCooldownFrames > 0) return;
 
     for (const axie of this.axies) {
-      if (axie.mountedTo) continue;
+      if (axie.isAbsorbed()) continue;
       if (!this.isHazard(axie.sprite.x, axie.sprite.y)) continue;
       if (this.canHover(axie)) continue;
 
-      // Parked / following Scout over a pit is illegal — snap that body only.
-      if (axie.role === "Scout" && axie.slot !== this.activeSlot) {
+      if (axie.axieClass === "Bird" && axie.slot !== this.activeSlot) {
         this.placeAt(axie, axie.lastSafe.x, axie.lastSafe.y);
         continue;
       }
@@ -483,16 +459,15 @@ export class PartyManager {
     }
   }
 
-  /** GDD §10: snap all three, break stack, −3 energy once. */
   private handlePitFall(): void {
     this.pitCooldownFrames = 30;
-    const active = this.getActive();
-    if (active.isInStack()) this.fullDismount(active.getBase());
+    this.splitIfFused();
 
     const energy = (this.scene.registry.get("energy") as number) ?? 0;
     this.scene.registry.set("energy", Math.max(0, energy - PIT_FALL_COST));
 
     for (const axie of this.axies) {
+      if (axie.isAbsorbed()) continue;
       this.placeAt(axie, axie.lastSafe.x, axie.lastSafe.y);
     }
   }
@@ -507,8 +482,6 @@ export class PartyManager {
   }
 
   private applyImmovable(axie: Axie, immovable: boolean): void {
-    // Parked mass stays put on plates, but not while overlapping an ally
-    // (full dismount can land the top on the carrier).
     if (immovable && this.overlapsAlly(axie)) {
       axie.body.setImmovable(false);
       return;
@@ -518,7 +491,7 @@ export class PartyManager {
 
   private overlapsAlly(axie: Axie): boolean {
     for (const other of this.axies) {
-      if (other === axie || other.mountedTo) continue;
+      if (other === axie || other.isAbsorbed()) continue;
       const dist = Phaser.Math.Distance.Between(
         axie.sprite.x,
         axie.sprite.y,
@@ -531,8 +504,9 @@ export class PartyManager {
   }
 
   private updateActiveVisuals(): void {
+    const active = this.getActive();
     for (const axie of this.axies) {
-      axie.setActive(axie.slot === this.activeSlot);
+      axie.setActive(axie === active);
     }
   }
 
@@ -541,17 +515,33 @@ export class PartyManager {
 
     const states: Record<number, string> = {};
     for (const axie of this.axies) {
-      if (axie.isInStack()) {
-        states[axie.slot] = "stacked";
-      } else if (axie.slot === this.activeSlot) {
+      if (axie.slot === this.activeSlot && !axie.isAbsorbed()) {
         states[axie.slot] = "active";
+      } else if (axie.isDruidHost() && axie.followPark === "park") {
+        states[axie.slot] = "park";
+      } else if (axie.isFused()) {
+        states[axie.slot] = "fused";
       } else {
         states[axie.slot] = axie.followPark;
       }
     }
     this.scene.registry.set("partyStates", states);
+    this.syncFuseHud();
+  }
 
-    const stackHeight = Math.max(...this.axies.map((a) => a.heightTier), 1);
-    this.scene.registry.set("stackHeight", stackHeight);
+  private syncFuseHud(): void {
+    const host = this.axies.find((a) => a.isDruidHost());
+    if (!host) {
+      this.scene.registry.set("fused", "");
+      this.scene.registry.set("fuseMs", 0);
+      this.scene.registry.set("fuseTag", "");
+      return;
+    }
+    this.scene.registry.set("fused", `×${host.fusionSize()}`);
+    this.scene.registry.set("fuseMs", Math.max(0, host.fuseUntil - this.scene.time.now));
+    this.scene.registry.set(
+      "fuseTag",
+      host.form ? formLabel(host.form) : "Druidform",
+    );
   }
 }

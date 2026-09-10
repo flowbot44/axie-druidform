@@ -23,7 +23,7 @@ export class VictoryScene extends Phaser.Scene {
     this.add.rectangle(w / 2, h / 2, w, h, 0x0e0e1a, 0.92);
 
     this.add
-      .text(w / 2, 88, "Totem of Lunacia — Purified", {
+      .text(w / 2, 88, "Shrine of Lunacia — Purified", {
         fontSize: "28px",
         color: "#80deea",
         fontFamily: "monospace",
@@ -108,7 +108,7 @@ export class VictoryScene extends Phaser.Scene {
       this.scene.stop("VictoryScene");
       this.scene.stop("HUDScene");
       this.scene.stop("GameScene");
-      this.scene.start("GameScene");
+      this.scene.start("CollectionScene");
     });
   }
 }

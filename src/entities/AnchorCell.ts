@@ -35,8 +35,9 @@ export class AnchorCell {
     let on = false;
     const cell = this.sprite.getBounds();
     for (const axie of axies) {
-      if (axie.mountedTo) continue;
-      if (axie.role !== "Tank") continue;
+      if (axie.isAbsorbed()) continue;
+      if (!axie.canPressPlate()) continue;
+
       if (Phaser.Geom.Intersects.RectangleToRectangle(cell, axie.sprite.getBounds())) {
         on = true;
         break;

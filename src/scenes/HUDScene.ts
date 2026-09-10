@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { PARTY } from "../config/constants.ts";
+import type { PartyMember } from "../config/constants.ts";
 
 /**
  * HUDScene — always-on overlay (GDD §7).
@@ -9,7 +9,7 @@ import { PARTY } from "../config/constants.ts";
  *
  * Displays:
  *  - Active Axie name + role       (top-left)
- *  - Stack heightTier if > 1
+ *  - Fused Dawn badge if Plant+Bird are combined
  *  - Energy counter                (top-right)
  *  - Room index                    (top-center)
  *  - Run timer                     (below room index)
@@ -23,6 +23,7 @@ export class HUDScene extends Phaser.Scene {
   private timerText!: Phaser.GameObjects.Text;
   private objectiveLabel!: Phaser.GameObjects.Text;
   private hintText!: Phaser.GameObjects.Text;
+  private formHelp!: Phaser.GameObjects.Text;
 
   private portraits: {
     fill: Phaser.GameObjects.Arc;
@@ -30,6 +31,7 @@ export class HUDScene extends Phaser.Scene {
   }[] = [];
 
   private badgeTexts: Phaser.GameObjects.Text[] = [];
+  private party: PartyMember[] = [];
 
   constructor() {
     super({ key: "HUDScene" });
@@ -37,6 +39,7 @@ export class HUDScene extends Phaser.Scene {
 
   create(): void {
     this.input.enabled = false;
+    this.party = (this.registry.get("party") as PartyMember[] | undefined) ?? [];
 
     const pad = 16;
     const w = this.cameras.main.width;
@@ -51,7 +54,7 @@ export class HUDScene extends Phaser.Scene {
 
     this.stackLabel = this.add.text(pad, pad + 22, "", {
       fontSize: "14px",
-      color: "#80deea",
+      color: "#ce93d8",
       fontFamily: "monospace",
       fontStyle: "bold",
     });
@@ -92,6 +95,15 @@ export class HUDScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0);
 
+    this.formHelp = this.add
+      .text(w / 2, this.cameras.main.height - pad - 18, "", {
+        fontSize: "14px",
+        color: "#90a4ae",
+        fontFamily: "monospace",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5, 1);
+
     this.hintText = this.add
       .text(w / 2, this.cameras.main.height - pad, "", {
         fontSize: "12px",
@@ -120,9 +132,9 @@ export class HUDScene extends Phaser.Scene {
     this.registry.events.on("changedata-partyStates", () =>
       this.refreshBadges(),
     );
-    this.registry.events.on("changedata-stackHeight", () =>
-      this.refreshStaticHUD(),
-    );
+    this.registry.events.on("changedata-fused", () => this.refreshStaticHUD());
+    this.registry.events.on("changedata-fuseMs", () => this.refreshStaticHUD());
+    this.registry.events.on("changedata-fuseTag", () => this.refreshStaticHUD());
     this.registry.events.on("changedata-objective", () =>
       this.refreshStaticHUD(),
     );
@@ -143,9 +155,9 @@ export class HUDScene extends Phaser.Scene {
   private createSlotPortraits(pad: number): void {
     const h = this.cameras.main.height;
 
-    for (let i = 0; i < PARTY.length; i++) {
-      const member = PARTY[i]!;
-      const x = pad + 20 + i * 50;
+    for (let i = 0; i < this.party.length; i++) {
+      const member = this.party[i]!;
+      const x = pad + 28 + i * 72;
       const y = h - pad - 36;
 
       // Border circle
@@ -194,12 +206,37 @@ export class HUDScene extends Phaser.Scene {
     const roomIndex = this.registry.get("roomIndex") as number;
 
     // Active label
-    const active = PARTY.find((p) => p.slot === activeSlot);
-    if (active) {
-      this.activeLabel.setText(`${active.name} — ${active.role}`);
+    const fused = (this.registry.get("fused") as string) ?? "";
+    const fuseTag = (this.registry.get("fuseTag") as string) ?? "";
+    const active = this.party.find((p) => p.slot === activeSlot);
+    if (fused) {
+      const tag = fuseTag || "Druidform";
+      this.activeLabel.setText(`${tag} ${fused}  ·  1/2/3 still pick Axies`);
+      this.activeLabel.setColor(
+        tag === "Bear" ? "#bcaaa4" : tag === "Cat" ? "#ff9800" : "#42a5f5",
+      );
+      this.formHelp.setText("Z Bear    X Cat    C Hawk");
+      this.formHelp.setColor(
+        tag === "Bear" ? "#bcaaa4" : tag === "Cat" ? "#ff9800" : "#42a5f5",
+      );
+    } else if (active) {
+      const role =
+        active.axieClass === "Plant"
+          ? "Tank"
+          : active.axieClass === "Beast"
+            ? "Striker"
+            : "Scout";
+      const spec = active.special ? " ★" : "";
+      this.activeLabel.setText(
+        `${active.name} — ${role} · ${active.axieClass}${spec}`,
+      );
       this.activeLabel.setColor(
         `#${active.color.toString(16).padStart(6, "0")}`,
       );
+      this.formHelp.setText("E fuse  ·  then Z Bear / X Cat / C Hawk");
+      this.formHelp.setColor("#546e7a");
+    } else {
+      this.formHelp.setText("");
     }
 
     // Energy
@@ -209,8 +246,13 @@ export class HUDScene extends Phaser.Scene {
     // Room
     this.roomLabel.setText(`Room ${roomIndex}`);
 
-    const stackHeight = (this.registry.get("stackHeight") as number) ?? 1;
-    this.stackLabel.setText(stackHeight > 1 ? `Totem ×${stackHeight}` : "");
+    const fuseMs = (this.registry.get("fuseMs") as number) ?? 0;
+    if (fused) {
+      const sec = (fuseMs / 1000).toFixed(1);
+      this.stackLabel.setText(`${fuseTag} ${fused}  ${sec}s`);
+    } else {
+      this.stackLabel.setText("");
+    }
 
     const objective = (this.registry.get("objective") as string) ?? "";
     this.objectiveLabel.setText(objective);
@@ -228,7 +270,7 @@ export class HUDScene extends Phaser.Scene {
     // Highlight active portrait
     for (let i = 0; i < this.portraits.length; i++) {
       const portrait = this.portraits[i]!;
-      const member = PARTY[i]!;
+      const member = this.party[i]!;
       const isActive = member.slot === activeSlot;
 
       portrait.fill.setFillStyle(member.color, isActive ? 0.9 : 0.3);
@@ -246,15 +288,15 @@ export class HUDScene extends Phaser.Scene {
       | undefined;
     if (!states) return;
 
-    for (let i = 0; i < PARTY.length; i++) {
-      const member = PARTY[i]!;
+    for (let i = 0; i < this.party.length; i++) {
+      const member = this.party[i]!;
       const state = states[member.slot];
       const badge = this.badgeTexts[i];
       if (!badge) continue;
 
-      if (state === "stacked") {
-        badge.setText("STACKED");
-        badge.setColor("#80deea");
+      if (state === "fused") {
+        badge.setText("FUSED");
+        badge.setColor("#ce93d8");
       } else if (state === "active") {
         badge.setText("");
       } else if (state === "follow") {

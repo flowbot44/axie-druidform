@@ -39,11 +39,16 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
+    if (!this.registry.get("party")) {
+      this.scene.start("CollectionScene");
+      return;
+    }
+
     this.registry.set("energy", STARTING_ENERGY);
     this.registry.set("activeSlot", 1);
     this.registry.set("roomIndex", 1);
     this.registry.set("runTime", 0);
-    this.registry.set("stackHeight", 1);
+    this.registry.set("fused", "");
     this.registry.set("partyStates", {
       1: "active",
       2: "follow",
@@ -93,6 +98,13 @@ export class GameScene extends Phaser.Scene {
     key2.on("down", () => this.partyManager.selectSlot(2));
     key3.on("down", () => this.partyManager.selectSlot(3));
 
+    const keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+    const keyX = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+    const keyC = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+    keyZ.on("down", () => this.partyManager.switchForm("bear"));
+    keyX.on("down", () => this.partyManager.switchForm("cat"));
+    keyC.on("down", () => this.partyManager.switchForm("hawk"));
+
     const keyTab = this.input.keyboard.addKey(
       Phaser.Input.Keyboard.KeyCodes.TAB,
     );
@@ -102,7 +114,7 @@ export class GameScene extends Phaser.Scene {
     keyF.on("down", () => this.partyManager.toggleFollowPark());
 
     const keyE = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
-    keyE.on("down", () => this.partyManager.tryStackOrDismount());
+    keyE.on("down", () => this.partyManager.tryFuseOrSplit());
 
     const keySpace = this.input.keyboard.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE,
@@ -132,7 +144,7 @@ export class GameScene extends Phaser.Scene {
     this.partyManager.moveActive(this.getInputDirection());
     this.partyManager.update();
 
-    const driven = this.partyManager.getActive().getBase();
+    const driven = this.partyManager.getActive();
     const energy = (this.registry.get("energy") as number) ?? STARTING_ENERGY;
     this.dungeon.checkLeaderRoom(driven.sprite.x, energy);
     this.dungeon.updatePuzzles(this.partyManager.getAxies());

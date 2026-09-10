@@ -4,21 +4,16 @@ import {
   CRYSTAL_COLOR_SOLVED,
   CRYSTAL_COLOR_WRONG,
   CRYSTAL_INTERACT_RANGE,
-  CRYSTAL_TARGET_TIER,
   TILE_SIZE,
 } from "../config/constants.ts";
 import type { Axie } from "./Axie.ts";
 
 /**
- * Pillar crystal — Room 4 interactable (GDD §11).
- *
- * Resolves only when the attacker's heightTier matches targetTier (3).
- * Step 4 uses Space / click as a height-gated interact; dart comes in Step 6.
+ * Pillar crystal — Room 4. Resolves only on a Dawn Seed Dart (GDD §11).
  */
 export class Crystal {
   public readonly sprite: Phaser.GameObjects.Rectangle;
   public readonly body: Phaser.Physics.Arcade.StaticBody;
-  public readonly targetTier = CRYSTAL_TARGET_TIER;
 
   private readonly scene: Phaser.Scene;
   private readonly label: Phaser.GameObjects.Text;
@@ -35,7 +30,7 @@ export class Crystal {
     this.body = this.sprite.body as Phaser.Physics.Arcade.StaticBody;
 
     this.label = scene.add
-      .text(x, y - 28, `T${this.targetTier}`, {
+      .text(x, y - 28, "HAWK", {
         fontSize: "10px",
         color: "#e1bee7",
         fontFamily: "monospace",
@@ -49,37 +44,26 @@ export class Crystal {
     return this.solved;
   }
 
-  /**
-   * Try to activate from the stack top (offense origin, GDD §11).
-   * Returns true only on a successful solve this call.
-   */
   tryActivate(axie: Axie): boolean {
     if (this.solved) return false;
-
-    const attacker = axie.getTop();
-    // Range from the stack base (world cell). Height still comes from the top.
-    const origin = axie.getBase();
     const dist = Phaser.Math.Distance.Between(
-      origin.sprite.x,
-      origin.sprite.y,
+      axie.sprite.x,
+      axie.sprite.y,
       this.sprite.x,
       this.sprite.y,
     );
-
     if (dist > CRYSTAL_INTERACT_RANGE) return false;
-
-    if (attacker.heightTier !== this.targetTier) {
+    if (!axie.isHawk()) {
       this.flashWrong();
       return false;
     }
-
     this.solve();
     return true;
   }
 
-  receiveHit(heightTier: number): boolean {
+  receiveHit(attacker: Axie): boolean {
     if (this.solved) return false;
-    if (heightTier !== this.targetTier) {
+    if (!attacker.isHawk()) {
       this.flashWrong();
       return false;
     }
@@ -93,7 +77,7 @@ export class Crystal {
     this.sprite.setAlpha(1);
     this.sprite.setFillStyle(CRYSTAL_COLOR_IDLE);
     this.sprite.setStrokeStyle(2, 0xe1bee7);
-    this.label.setText(`T${this.targetTier}`);
+    this.label.setText("HAWK");
     this.label.setColor("#e1bee7");
     this.scene.registry.set("crystalSolved", false);
   }

@@ -1,6 +1,6 @@
 # Axie Druidform — Totem of Lunacia
 
-A top-down Zelda-style puzzle-action game where your three Axies must be swapped, parked, and stacked to purify the Totem of Lunacia on a tight energy budget.
+A top-down Zelda-style puzzle-action game where you pick three owned Axies, then swap, park, and fuse them into Bear, Cat, or Hawk to purify the Shrine of Lunacia on a tight energy budget.
 
 > Axie Vibeathon · Round 1 Prototype
 

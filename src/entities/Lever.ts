@@ -39,7 +39,7 @@ export class Lever {
     if (this.pulled) return;
     const bounds = this.sprite.getBounds();
     for (const axie of axies) {
-      if (axie.mountedTo) continue;
+      if (axie.isAbsorbed()) continue;
       if (
         Phaser.Geom.Intersects.RectangleToRectangle(bounds, axie.sprite.getBounds())
       ) {

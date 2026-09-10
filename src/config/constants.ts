@@ -15,19 +15,29 @@ export const FOLLOW_DISTANCE = 60; // px gap between leader and each follower
 export const FOLLOW_STOP_THRESHOLD = 8; // px; follower stops when this close to target
 export const BREADCRUMB_INTERVAL = 8; // record a breadcrumb every N px of leader movement
 
-/** Totem stack (GDD §11) */
-export const STACK_RANGE = 40; // px; nearest ally must be within this to mount
-export const STACK_Y_OFFSET = 28; // px; rider sits this far above the carrier
-export const DISMOUNT_POP = 32; // px; top unit pops backward on full collapse
+/** Fusion / Druidform (GDD §11) */
+export const FUSE_RANGE = 40;
+export const FUSE_COST = 3;
+export const FORM_SWITCH_COST = 1;
+export const SPLIT_POP = 32;
+export const DRUID_2_COLOR = 0x9575cd;
+export const DRUID_3_COLOR = 0xffd54f;
+export const DAWN_COLOR = 0xb39ddb;
+export const DRUID_2_MS = 8_000;
+export const DRUID_3_MS = 14_000;
+export const DRUID_SYNERGY_MS = 4_000;
+export const DRUID_2_SPEED = 1.25;
+export const DRUID_3_SPEED = 1.5;
+export const DRUID_2_RANGE = 1.25;
+export const DRUID_3_RANGE = 1.5;
 
 /** Crystal (GDD §11, Room 4) */
-export const CRYSTAL_TARGET_TIER = 3;
-export const CRYSTAL_INTERACT_RANGE = 64; // px from stack base (world cell) to crystal
+export const CRYSTAL_INTERACT_RANGE = 64;
 
 /** Energy (GDD §9) */
 export const STARTING_ENERGY = 100;
 
-/** Abilities (GDD §9) — Space / click fires the stack top's kit */
+/** Abilities (GDD §9) — Space / click fires the active (or Dawn) kit */
 export const SLAM_COST = 2;
 export const SLAM_RADIUS = 48;
 export const SLASH_COST = 1;
@@ -68,8 +78,6 @@ export const LEVER_COLOR_ON = 0xffc107;
 export const EYE_COLOR_IDLE = 0x26c6da;
 export const EYE_COLOR_WRONG = 0xef5350;
 export const EYE_COLOR_SOLVED = 0x69f0ae;
-export const EYE_TARGET_TIER = 1;
-export const BOSS_EYE_TIER = 3;
 export const SIMULATED_AXP = 250;
 export const WHIP_COLOR = 0x6d4c41;
 export const CORE_COLOR = 0xff7043;
@@ -80,25 +88,26 @@ export const ANCHOR_COLOR_ON = 0x66bb6a;
 // Party roster (GDD §4 — LOCKED)
 // ---------------------------------------------------------------------------
 
-export interface PartyMember {
-  readonly slot: number;
-  readonly name: string;
-  readonly role: string;
-  readonly color: number;
-  readonly speed: number;
+export type AxieClass = "Plant" | "Beast" | "Bird" | "Aqua" | "Bug" | "Reptile" | "Mech" | "Dawn" | "Dusk";
+
+export interface AxieParts {
+  readonly horn: string;
+  readonly mouth: string;
+  readonly back: string;
+  readonly tail: string;
 }
 
-export const PARTY: readonly PartyMember[] = [
-  { slot: 1, name: "Olek", role: "Tank", color: 0x4caf50, speed: PLAYER_SPEED },
-  {
-    slot: 2,
-    name: "Buba",
-    role: "Striker",
-    color: 0xff9800,
-    speed: Math.floor(PLAYER_SPEED * 1.25), // +25% sprint passive (GDD §6)
-  },
-  { slot: 3, name: "Puffy", role: "Scout", color: 0x42a5f5, speed: PLAYER_SPEED },
-];
+export interface PartyMember {
+  readonly slot: number;
+  readonly id: number;
+  readonly name: string;
+  readonly axieClass: AxieClass;
+  readonly parts: AxieParts;
+  readonly color: number;
+  readonly speed: number;
+  readonly image?: string;
+  readonly special?: string;
+}
 
 // ---------------------------------------------------------------------------
 // Room layouts — hardcoded arrays for Steps 1–6.
@@ -154,18 +163,18 @@ export const ROOM_5: number[][] = [
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
 ];
 
-/** Room 4 — The Totem Pillar. Open hall for Step 4 stack + crystal. */
+/** Room 4 — Thorn landing. Narrow pit, then a Cat-only bramble gate. */
 export const ROOM_4: number[][] = [
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
 ];
 
@@ -247,23 +256,23 @@ export function worldCenter(
 export const ROOM_COPY: readonly { objective: string; hint: string }[] = [
   { objective: "", hint: "" },
   {
-    objective: "Slash the brambles — 2 Buba, Space",
-    hint: "2 Buba  Space slash (1)  walk east  Bell retries the room",
+    objective: "Slash the brambles — Beast, or fuse Cat (X)",
+    hint: "Beast Space  or  E fuse  X Cat  Space  Bell retries",
   },
   {
-    objective: "Park (F), hover as Puffy, dart the T1 eye",
-    hint: "3 Puffy  hover the gap  Space dart (2)  Bell retries",
+    objective: "Hover the gap, dart the eye — Bird or Hawk (C)",
+    hint: "Bird hover+dart  or  E fuse  C Hawk  fly and dart",
   },
   {
-    objective: "Park Olek on the plate, walk through, pull the lever",
-    hint: "F park Tank  swap  walk through  pull lever  Olek follows",
+    objective: "Bear on the plate, swap to the free Axie, walk through",
+    hint: "E fuse two  Z Bear  stand on plate  1/2/3 the leftover  Bear stays parked",
   },
   {
-    objective: "Stack a Totem ×3, dart the T3 crystal",
-    hint: "Park Olek  2 E  3 E  Space dart from the top",
+    objective: "Hawk the pit, then Cat the thorn gate",
+    hint: "C Hawk  fly across  X Cat  slash the thorns  1/2/3 still pick Axies",
   },
   {
-    objective: "Anchor the whip — Olek on the cell, or Root Slam",
-    hint: "Park Olek on ANCHOR  stack ×3  dart T3 eye  slash CORE",
+    objective: "Hawk-dart the eye, Bear the anchor, Cat the core",
+    hint: "C dart eye  Z on ANCHOR  swap leftover or X slash CORE",
   },
 ];

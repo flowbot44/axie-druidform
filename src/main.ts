@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { BootScene } from "./scenes/BootScene.ts";
+import { CollectionScene } from "./scenes/CollectionScene.ts";
 import { GameScene } from "./scenes/GameScene.ts";
 import { HUDScene } from "./scenes/HUDScene.ts";
 import { VictoryScene } from "./scenes/VictoryScene.ts";
@@ -22,7 +22,7 @@ const config: Phaser.Types.Core.GameConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   pixelArt: true,
-  scene: [GameScene, HUDScene, VictoryScene, BootScene],
+  scene: [CollectionScene, GameScene, HUDScene, VictoryScene],
 };
 
 new Phaser.Game(config);

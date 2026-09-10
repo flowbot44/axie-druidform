@@ -1,20 +1,36 @@
 import Phaser from "phaser";
-import type { PartyMember } from "../config/constants.ts";
+import type { PartyMember, AxieClass, AxieParts } from "../config/constants.ts";
+import {
+  DRUID_2_RANGE,
+  DRUID_2_SPEED,
+  DRUID_3_RANGE,
+  DRUID_3_SPEED,
+  PLAYER_SPEED,
+} from "../config/constants.ts";
+import {
+  defaultFormFor,
+  formColor,
+  formLabel,
+  hawkSpeedMul,
+  isFlyerClass,
+  isHeavyClass,
+  lineageScore,
+  type DruidForm,
+} from "../config/forms.ts";
 
 /**
  * Axie — a single party member's world representation.
  *
- * Wraps a colored ellipse with an Arcade physics body.
- * Properties match GDD §14 implementation notes:
- *   { slot, role, followPark, heightTier, mountedTo }
+ * { slot, axieClass, parts, followPark, guests, absorbedBy }
  */
 export class Axie {
   public readonly slot: number;
-  public readonly role: string;
+  public readonly axieClass: AxieClass;
+  public readonly parts: AxieParts;
   public readonly axeName: string;
   public readonly speed: number;
+  public readonly baseColor: number;
 
-  /** The physics-enabled game object. Use for collision setup. */
   public readonly sprite: Phaser.GameObjects.Ellipse;
   public readonly body: Phaser.Physics.Arcade.Body;
 
@@ -22,31 +38,28 @@ export class Axie {
   private readonly slotLabel: Phaser.GameObjects.Text;
   private readonly scene: Phaser.Scene;
 
-  // State — GDD §14 implementation notes
-  public heightTier = 1;
   public followPark: "follow" | "park" = "follow";
-  public mountedTo: Axie | null = null;
-  /** Direct rider parented on this Axie (one child; walk to the top). */
-  public directRider: Axie | null = null;
-  /** Last non-zero move direction; used for dismount pop (GDD §11). */
+  public guests: Axie[] = [];
+  public absorbedBy: Axie | null = null;
+  public fuseUntil = 0;
+  public form: DruidForm | null = null;
   public lastFacing = { x: 1, y: 0 };
-  /** Last floor position; used for pit snap (GDD §8, §10). */
   public lastSafe = { x: 0, y: 0 };
 
   constructor(scene: Phaser.Scene, x: number, y: number, config: PartyMember) {
     this.scene = scene;
     this.slot = config.slot;
-    this.role = config.role;
+    this.axieClass = config.axieClass;
+    this.parts = config.parts;
     this.axeName = config.name;
     this.speed = config.speed;
+    this.baseColor = config.color;
 
-    // Active indicator ring (rendered behind the ellipse)
     this.indicator = scene.add.circle(x, y, 18, 0x000000, 0);
     this.indicator.setStrokeStyle(2, 0xffffff, 0.8);
     this.indicator.setVisible(false);
     this.indicator.setDepth(0);
 
-    // Colored ellipse — "colored primitive bodies" (GDD §14, days 1–3)
     this.sprite = scene.add.ellipse(x, y, 28, 22, config.color);
     this.sprite.setDepth(1);
     scene.physics.add.existing(this.sprite);
@@ -54,7 +67,6 @@ export class Axie {
     this.body.setCollideWorldBounds(true);
     this.lastSafe = { x, y };
 
-    // Slot number label above the body
     this.slotLabel = scene.add
       .text(x, y - 18, `${config.slot}`, {
         fontSize: "10px",
@@ -66,34 +78,129 @@ export class Axie {
       .setDepth(2);
   }
 
-  /** Apply a normalized direction vector as velocity. */
   move(direction: { x: number; y: number }): void {
-    this.body.setVelocity(direction.x * this.speed, direction.y * this.speed);
+    const spd = this.moveSpeed();
+    this.body.setVelocity(direction.x * spd, direction.y * spd);
     if (direction.x !== 0 || direction.y !== 0) {
       this.lastFacing = { x: direction.x, y: direction.y };
     }
   }
 
-  /** True if this Axie is a rider or is carrying at least one rider. */
-  isInStack(): boolean {
-    return this.mountedTo !== null || this.directRider !== null;
+  isDruidHost(): boolean {
+    return this.guests.length > 0;
   }
 
-  /** Walk down to the stack base (self if unstacked). */
-  getBase(): Axie {
-    let node: Axie = this;
-    while (node.mountedTo) node = node.mountedTo;
-    return node;
+  isAbsorbed(): boolean {
+    return this.absorbedBy !== null;
   }
 
-  /** Walk up to the stack top (self if unstacked). */
-  getTop(): Axie {
-    let node: Axie = this;
-    while (node.directRider) node = node.directRider;
-    return node;
+  isFused(): boolean {
+    return this.isDruidHost() || this.isAbsorbed();
   }
 
-  /** Enable/disable the independent Arcade body (riders have none). */
+  fusionSize(): number {
+    return 1 + this.guests.length;
+  }
+
+  hasClass(cls: AxieClass): boolean {
+    if (this.axieClass === cls) return true;
+    return this.guests.some((g) => g.axieClass === cls);
+  }
+
+  /** Official Plant + Bird pair inside this Druidform (duration / vine bonus). */
+  isDawnSynergy(): boolean {
+    return this.isDruidHost() && this.hasClass("Plant") && this.hasClass("Bird");
+  }
+
+  pile(): Axie[] {
+    return [this, ...this.guests];
+  }
+
+  lineageCount(pred: (cls: AxieClass) => boolean): number {
+    return this.pile().filter((a) => pred(a.axieClass)).length;
+  }
+
+  formRating(form: DruidForm): number {
+    return this.pile().reduce((sum, a) => sum + lineageScore(a.axieClass, form), 0);
+  }
+
+  isBear(): boolean {
+    return this.isDruidHost() && this.form === "bear";
+  }
+
+  isCat(): boolean {
+    return this.isDruidHost() && this.form === "cat";
+  }
+
+  isHawk(): boolean {
+    return this.isDruidHost() && this.form === "hawk";
+  }
+
+  canPressPlate(): boolean {
+    if (this.isAbsorbed()) return false;
+    if (this.isDruidHost()) return this.form === "bear";
+    return isHeavyClass(this.axieClass);
+  }
+
+  getRole(): string {
+    if (this.isDruidHost() && this.form) {
+      return `${formLabel(this.form)} ×${this.fusionSize()}`;
+    }
+    if (this.axieClass === "Plant") return "Tank";
+    if (this.axieClass === "Beast") return "Striker";
+    if (this.axieClass === "Bird") return "Scout";
+    return this.axieClass;
+  }
+
+  moveSpeed(): number {
+    const base =
+      this.axieClass === "Beast" && !this.isDruidHost()
+        ? this.speed
+        : PLAYER_SPEED;
+    if (!this.isDruidHost()) return base;
+    const sizeMul = this.fusionSize() >= 3 ? DRUID_3_SPEED : DRUID_2_SPEED;
+    const flyMul =
+      this.form === "hawk"
+        ? hawkSpeedMul(this.lineageCount(isFlyerClass))
+        : 1;
+    return Math.floor(base * sizeMul * flyMul);
+  }
+
+  rangeMul(): number {
+    if (!this.isDruidHost()) return 1;
+    return this.fusionSize() >= 3 ? DRUID_3_RANGE : DRUID_2_RANGE;
+  }
+
+  beginForm(form: DruidForm = defaultFormFor(this.axieClass)): void {
+    this.form = form;
+    this.applyDruidLook();
+  }
+
+  applyDruidLook(): void {
+    const triple = this.fusionSize() >= 3;
+    const color = this.form ? formColor(this.form) : 0x9575cd;
+    this.sprite.setFillStyle(color, 1);
+    this.sprite.setSize(triple ? 36 : 32, triple ? 28 : 24);
+    const tag =
+      this.form === "bear" ? "B" : this.form === "cat" ? "C" : "H";
+    this.slotLabel.setText(`${tag}${triple ? "3" : "2"}`);
+  }
+
+  restoreLook(): void {
+    this.sprite.setFillStyle(this.baseColor, 1);
+    this.sprite.setSize(28, 22);
+    this.slotLabel.setText(`${this.slot}`);
+    this.fuseUntil = 0;
+    this.form = null;
+  }
+
+  setHidden(hidden: boolean): void {
+    this.sprite.setVisible(!hidden);
+    this.slotLabel.setVisible(!hidden);
+    this.indicator.setVisible(!hidden && this.indicator.visible);
+    this.setBodyEnabled(!hidden);
+  }
+
   setBodyEnabled(enabled: boolean): void {
     this.body.enable = enabled;
     if (!enabled) {
@@ -101,19 +208,11 @@ export class Axie {
     }
   }
 
-  /** Draw riders above carriers (heightTier 1..3). */
-  applyStackDepth(): void {
-    this.sprite.setDepth(this.heightTier);
-    this.indicator.setDepth(this.heightTier - 0.1);
-    this.slotLabel.setDepth(this.heightTier + 0.1);
-  }
-
-  /** Toggle the active indicator ring with a pulsing tween. */
   setActive(active: boolean): void {
     this.scene.tweens.killTweensOf(this.indicator);
-    this.indicator.setVisible(active);
+    this.indicator.setVisible(active && this.sprite.visible);
 
-    if (active) {
+    if (active && this.sprite.visible) {
       this.indicator.setAlpha(0.8);
       this.scene.tweens.add({
         targets: this.indicator,
@@ -125,9 +224,15 @@ export class Axie {
     }
   }
 
-  /** Sync child visuals (indicator, label) to the sprite position. Call after physics. */
   syncVisuals(): void {
     this.indicator.setPosition(this.sprite.x, this.sprite.y);
     this.slotLabel.setPosition(this.sprite.x, this.sprite.y - 18);
+  }
+
+  getWeightTier(): number {
+    if (this.isAbsorbed()) return 1;
+    if (this.canPressPlate()) return 3;
+    if (this.hasClass("Beast")) return 2;
+    return 1;
   }
 }

@@ -17,14 +17,14 @@ export class BootScene extends Phaser.Scene {
     const cy = this.cameras.main.centerY;
 
     // Party slot colors from GDD §4:
-    // Olek (Plant/Tank) = green, Buba (Beast/Striker) = orange, Puffy (Bird/Scout) = blue
-    const party = [
-      { name: "Olek — Tank", color: 0x4caf50, x: cx - 160 },
-      { name: "Buba — Striker", color: 0xff9800, x: cx },
-      { name: "Puffy — Scout", color: 0x42a5f5, x: cx + 160 },
+    // Olek (Plant) = green, Buba (Beast) = orange, Puffy (Bird) = blue
+    const cast = [
+      { name: "Olek — Plant", color: 0x4caf50, x: cx - 160 },
+      { name: "Buba — Beast", color: 0xff9800, x: cx },
+      { name: "Puffy — Bird", color: 0x42a5f5, x: cx + 160 },
     ];
 
-    for (const axie of party) {
+    for (const axie of cast) {
       // Colored ellipse body
       const gfx = this.add.graphics();
       gfx.fillStyle(axie.color, 1);
