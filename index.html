@@ -2,12 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>Axie Druidform — Totem of Lunacia</title>
     <style>
       * {
         margin: 0;
         padding: 0;
+        box-sizing: border-box;
       }
       html,
       body {
@@ -15,6 +21,10 @@
         height: 100%;
         overflow: hidden;
         background: #000;
+        touch-action: none;
+        overscroll-behavior: none;
+        -webkit-user-select: none;
+        user-select: none;
       }
       #game {
         display: flex;
@@ -23,9 +33,32 @@
         width: 100%;
         height: 100%;
       }
+      #game canvas {
+        touch-action: none;
+      }
+      #rotate {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        background: #0e0e1a;
+        color: #e0b84a;
+        font-family: monospace;
+        font-size: 18px;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 24px;
+      }
+      @media (orientation: portrait) and (pointer: coarse) {
+        #rotate {
+          display: flex;
+        }
+      }
     </style>
   </head>
   <body>
+    <div id="rotate">Turn the phone sideways to play</div>
     <div id="game"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

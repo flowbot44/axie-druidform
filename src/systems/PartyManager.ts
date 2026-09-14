@@ -19,12 +19,28 @@ import {
   type PartyMember,
 } from "../config/constants.ts";
 import { partFuseBonusMs } from "../config/collection.ts";
+import { bumpLedger } from "../config/energy.ts";
 import { defaultFormFor, formLabel, type DruidForm } from "../config/forms.ts";
+import {
+  HERBIVORE_CAP_PER_ROOM,
+  HERBIVORE_PERIOD_MS,
+  ROOT_PULL_TILES,
+  pileHasHerbivore,
+  toastOnce,
+  verbForBody,
+  verbLabel,
+} from "../config/parts.ts";
 
 interface Breadcrumb {
   x: number;
   y: number;
 }
+
+const SPAWN_OFFSETS = [
+  { x: 0, y: 0 },
+  { x: -54, y: 38 },
+  { x: -54, y: -38 },
+] as const;
 
 /**
  * PartyManager — owns all three Axies and drives party state.
@@ -39,7 +55,11 @@ export class PartyManager {
   private lastTrailPos: Breadcrumb | null = null;
   private groupFollowPark: "follow" | "park" = "follow";
   private isHazard: ((x: number, y: number) => boolean) | null = null;
+  private isBlocked: ((x: number, y: number) => boolean) | null = null;
   private pitCooldownFrames = 0;
+  private herbivoreNextAt = 0;
+  private herbivoreGained = 0;
+  private herbivoreRoom = 0;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
@@ -98,6 +118,91 @@ export class PartyManager {
     this.isHazard = fn;
   }
 
+  setBlockedQuery(fn: (x: number, y: number) => boolean): void {
+    this.isBlocked = fn;
+  }
+
+  pullNearestParked(
+    origin: { x: number; y: number },
+  ): { x: number; y: number } | null {
+    const attacker = this.getActive();
+    let best: Axie | null = null;
+    let bestDist = Infinity;
+    for (const other of this.axies) {
+      if (other === attacker || other.isAbsorbed()) continue;
+      if (other.followPark !== "park") continue;
+      const dist = Phaser.Math.Distance.Between(
+        origin.x,
+        origin.y,
+        other.sprite.x,
+        other.sprite.y,
+      );
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = other;
+      }
+    }
+    if (!best) return null;
+
+    const dx = origin.x - best.sprite.x;
+    const dy = origin.y - best.sprite.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = dx / len;
+    const ny = dy / len;
+    const max = ROOT_PULL_TILES * TILE_SIZE;
+    const step = 4;
+    let x = best.sprite.x;
+    let y = best.sprite.y;
+    let moved = 0;
+    while (moved + step <= max) {
+      const tx = x + nx * step;
+      const ty = y + ny * step;
+      if (this.isBlocked?.(tx, ty)) break;
+      x = tx;
+      y = ty;
+      moved += step;
+    }
+    if (moved < 1) return null;
+    this.placeAt(best, x, y);
+    return { x, y };
+  }
+
+  private tickHerbivore(): void {
+    const room = (this.scene.registry.get("roomIndex") as number) ?? 1;
+    if (room !== this.herbivoreRoom) {
+      this.herbivoreRoom = room;
+      this.herbivoreGained = 0;
+      this.herbivoreNextAt = 0;
+    }
+
+    const parked = this.axies.filter(
+      (a) =>
+        !a.isAbsorbed() &&
+        a.followPark === "park" &&
+        a.slot !== this.activeSlot,
+    );
+    const charging = parked.some((a) => pileHasHerbivore(a.pile()));
+    if (!charging) {
+      this.herbivoreNextAt = 0;
+      return;
+    }
+
+    const now = this.scene.time.now;
+    if (this.herbivoreNextAt === 0) {
+      this.herbivoreNextAt = now + HERBIVORE_PERIOD_MS;
+      return;
+    }
+    if (now < this.herbivoreNextAt) return;
+    if (this.herbivoreGained >= HERBIVORE_CAP_PER_ROOM) return;
+
+    const energy = (this.scene.registry.get("energy") as number) ?? 0;
+    this.scene.registry.set("energy", energy + 1);
+    bumpLedger(this.scene, "herbivore", 1);
+    this.herbivoreGained += 1;
+    this.herbivoreNextAt = now + HERBIVORE_PERIOD_MS;
+    toastOnce(this.scene, "herbivore", "Herbivore — parked regen");
+  }
+
   /** Unfused Bird, or Hawk form, only while active. */
   canHover(axie: Axie): boolean {
     if (axie.isAbsorbed()) return false;
@@ -139,11 +244,6 @@ export class PartyManager {
   resetLocalParty(roomIndex: number, spawnX: number, spawnY: number): void {
     this.splitIfFused();
     const origin = (roomIndex - 1) * ROOM_PX_W;
-    const offsets = [
-      { x: 0, y: 0 },
-      { x: -TILE_SIZE, y: Math.floor(TILE_SIZE * 0.5) },
-      { x: -TILE_SIZE, y: -Math.floor(TILE_SIZE * 0.5) },
-    ];
     let n = 0;
     for (const axie of this.axies) {
       if (axie.sprite.x < origin || axie.sprite.x >= origin + ROOM_PX_W) {
@@ -152,12 +252,15 @@ export class PartyManager {
       if (axie.slot !== this.activeSlot) {
         axie.followPark = this.groupFollowPark;
       }
-      const off = offsets[n] ?? { x: 0, y: 0 };
+      const off = SPAWN_OFFSETS[n] ?? { x: 0, y: 0 };
       this.placeAt(axie, spawnX + off.x, spawnY + off.y);
       n += 1;
     }
     this.trail = [];
     this.lastTrailPos = null;
+    this.herbivoreNextAt = 0;
+    this.herbivoreGained = 0;
+    this.scene.registry.set("cloverKitRoom", 0);
     this.syncRegistry();
   }
 
@@ -195,6 +298,7 @@ export class PartyManager {
   update(): void {
     const driven = this.getActive();
     this.recordBreadcrumb(driven);
+    this.tickHerbivore();
 
     const followers = this.axies.filter(
       (a) => a.slot !== driven.slot && !a.isAbsorbed(),
@@ -258,6 +362,7 @@ export class PartyManager {
         ) {
           follower.body.setVelocity(0, 0);
         } else {
+          follower.lastFacing = { x: Math.cos(angle), y: Math.sin(angle) };
           follower.body.setVelocity(
             Math.cos(angle) * follower.speed,
             Math.sin(angle) * follower.speed,
@@ -288,16 +393,10 @@ export class PartyManager {
     const baseX = 3 * TILE_SIZE + TILE_SIZE / 2;
     const baseY = Math.floor(ROOM_HEIGHT / 2) * TILE_SIZE + TILE_SIZE / 2;
 
-    const offsets = [
-      { x: 0, y: 0 },
-      { x: -TILE_SIZE, y: Math.floor(TILE_SIZE * 0.5) },
-      { x: -TILE_SIZE, y: -Math.floor(TILE_SIZE * 0.5) },
-    ];
-
     const party = (this.scene.registry.get("party") as PartyMember[] | undefined) ?? [];
     for (let i = 0; i < party.length; i++) {
       const member = party[i]!;
-      const offset = offsets[i]!;
+      const offset = SPAWN_OFFSETS[i] ?? { x: 0, y: 0 };
       this.axies.push(
         new Axie(this.scene, baseX + offset.x, baseY + offset.y, member),
       );
@@ -308,6 +407,7 @@ export class PartyManager {
     const energy = (this.scene.registry.get("energy") as number) ?? 0;
     if (energy < FUSE_COST) return false;
     this.scene.registry.set("energy", energy - FUSE_COST);
+    bumpLedger(this.scene, "fuse", FUSE_COST);
     return true;
   }
 
@@ -325,6 +425,7 @@ export class PartyManager {
     const energy = (this.scene.registry.get("energy") as number) ?? 0;
     if (energy >= FORM_SWITCH_COST) {
       this.scene.registry.set("energy", energy - FORM_SWITCH_COST);
+      bumpLedger(this.scene, "formSwitch", FORM_SWITCH_COST);
     }
     host.form = form;
     host.applyDruidLook();
@@ -350,7 +451,26 @@ export class PartyManager {
     host.guests.push(guest);
     guest.setHidden(true);
     this.refreshFuseTimer(host);
+    this.fusePop(host);
     this.syncRegistry();
+  }
+
+  private fusePop(host: Axie): void {
+    const pop = this.scene.add.circle(
+      host.sprite.x,
+      host.sprite.y,
+      14,
+      0xffd54f,
+      0.55,
+    );
+    pop.setDepth(6);
+    this.scene.tweens.add({
+      targets: pop,
+      scale: 2.6,
+      alpha: 0,
+      duration: 280,
+      onComplete: () => pop.destroy(),
+    });
   }
 
   private split(host: Axie): void {
@@ -464,7 +584,9 @@ export class PartyManager {
     this.splitIfFused();
 
     const energy = (this.scene.registry.get("energy") as number) ?? 0;
-    this.scene.registry.set("energy", Math.max(0, energy - PIT_FALL_COST));
+    const lost = Math.min(PIT_FALL_COST, energy);
+    this.scene.registry.set("energy", energy - lost);
+    bumpLedger(this.scene, "pit", lost);
 
     for (const axie of this.axies) {
       if (axie.isAbsorbed()) continue;
@@ -498,7 +620,7 @@ export class PartyManager {
         other.sprite.x,
         other.sprite.y,
       );
-      if (dist < 24) return true;
+      if (dist < 32) return true;
     }
     return false;
   }
@@ -530,6 +652,14 @@ export class PartyManager {
   }
 
   private syncFuseHud(): void {
+    const driven = this.getActive();
+    const verb = verbForBody(
+      driven.pile(),
+      driven.isDruidHost() ? driven.form : null,
+      driven.axieClass,
+    );
+    this.scene.registry.set("formVerb", verb ? verbLabel(verb) : "");
+
     const host = this.axies.find((a) => a.isDruidHost());
     if (!host) {
       this.scene.registry.set("fused", "");

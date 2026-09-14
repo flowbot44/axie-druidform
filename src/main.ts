@@ -2,6 +2,8 @@ import Phaser from "phaser";
 import { CollectionScene } from "./scenes/CollectionScene.ts";
 import { GameScene } from "./scenes/GameScene.ts";
 import { HUDScene } from "./scenes/HUDScene.ts";
+import { LeaderboardScene } from "./scenes/LeaderboardScene.ts";
+import { PreloadScene } from "./scenes/PreloadScene.ts";
 import { VictoryScene } from "./scenes/VictoryScene.ts";
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -17,12 +19,21 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
+  input: {
+    activePointers: 3,
+  },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    autoRound: true,
+    expandParent: true,
   },
-  pixelArt: true,
-  scene: [CollectionScene, GameScene, HUDScene, VictoryScene],
+  roundPixels: true,
+  pixelArt: false,
+  scene: [PreloadScene, CollectionScene, GameScene, HUDScene, VictoryScene, LeaderboardScene],
 };
 
-new Phaser.Game(config);
+const game = new Phaser.Game(config);
+if (import.meta.env.DEV) {
+  (window as unknown as { __game: Phaser.Game }).__game = game;
+}

@@ -1,9 +1,6 @@
 import Phaser from "phaser";
-import {
-  LEVER_COLOR_OFF,
-  LEVER_COLOR_ON,
-  TILE_SIZE,
-} from "../config/constants.ts";
+import { TILE_SIZE } from "../config/constants.ts";
+import { ghostBody } from "../art/paint.ts";
 import type { Axie } from "./Axie.ts";
 
 /**
@@ -12,23 +9,16 @@ import type { Axie } from "./Axie.ts";
  */
 export class Lever {
   public readonly sprite: Phaser.GameObjects.Rectangle;
-  private readonly label: Phaser.GameObjects.Text;
+  private readonly art: Phaser.GameObjects.Image;
   private pulled = false;
   private readonly onPull: () => void;
 
   constructor(scene: Phaser.Scene, x: number, y: number, onPull: () => void) {
     this.onPull = onPull;
-    this.sprite = scene.add.rectangle(x, y, 10, TILE_SIZE - 8, LEVER_COLOR_OFF);
-    this.sprite.setStrokeStyle(2, 0x5d4037);
+    this.sprite = scene.add.rectangle(x, y, 14, TILE_SIZE - 4, 0x000000, 0);
+    ghostBody(this.sprite);
     this.sprite.setDepth(0.45);
-    this.label = scene.add
-      .text(x, y - 22, "Lever", {
-        fontSize: "9px",
-        color: "#bcaaa4",
-        fontFamily: "monospace",
-      })
-      .setOrigin(0.5)
-      .setDepth(0.5);
+    this.art = scene.add.image(x, y, "prop-lever-off").setDepth(0.46);
   }
 
   isPulled(): boolean {
@@ -51,14 +41,12 @@ export class Lever {
 
   reset(): void {
     this.pulled = false;
-    this.sprite.setFillStyle(LEVER_COLOR_OFF);
-    this.label.setColor("#bcaaa4");
+    this.art.setTexture("prop-lever-off");
   }
 
   private pull(): void {
     this.pulled = true;
-    this.sprite.setFillStyle(LEVER_COLOR_ON);
-    this.label.setColor("#ffc107");
+    this.art.setTexture("prop-lever-on");
     this.onPull();
   }
 }

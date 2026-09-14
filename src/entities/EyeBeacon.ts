@@ -1,9 +1,5 @@
 import Phaser from "phaser";
-import {
-  EYE_COLOR_IDLE,
-  EYE_COLOR_SOLVED,
-  EYE_COLOR_WRONG,
-} from "../config/constants.ts";
+import { idlePulse } from "../art/paint.ts";
 import type { Axie } from "./Axie.ts";
 
 export type EyeGate = "bird-or-hawk" | "hawk";
@@ -16,8 +12,8 @@ export class EyeBeacon {
   public readonly gate: EyeGate;
 
   private readonly scene: Phaser.Scene;
-  private readonly pupil: Phaser.GameObjects.Arc;
-  private readonly label: Phaser.GameObjects.Text;
+  private readonly art: Phaser.GameObjects.Image;
+  private readonly prefix: string;
   private solved = false;
   private readonly onSolved: () => void;
 
@@ -31,23 +27,12 @@ export class EyeBeacon {
     this.scene = scene;
     this.onSolved = onSolved;
     this.gate = gate;
+    this.prefix = gate === "hawk" ? "prop-eye-hawk" : "prop-eye-bird";
 
-    this.sprite = scene.add.circle(x, y, 12, EYE_COLOR_IDLE);
-    this.sprite.setStrokeStyle(2, 0xe0f7fa);
+    this.sprite = scene.add.circle(x, y, 14, 0x000000, 0);
     this.sprite.setDepth(0.5);
-
-    this.pupil = scene.add.circle(x, y, 4, 0x102027);
-    this.pupil.setDepth(0.55);
-
-    this.label = scene.add
-      .text(x, y - 22, gate === "hawk" ? "HAWK" : "BIRD", {
-        fontSize: "10px",
-        color: "#e0f7fa",
-        fontFamily: "monospace",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setDepth(0.6);
+    this.art = scene.add.image(x, y, `${this.prefix}-idle`).setDepth(0.55);
+    idlePulse(scene, this.art);
   }
 
   isSolved(): boolean {
@@ -69,37 +54,34 @@ export class EyeBeacon {
 
   reset(): void {
     this.solved = false;
-    this.scene.tweens.killTweensOf(this.sprite);
-    this.sprite.setAlpha(1);
-    this.sprite.setFillStyle(EYE_COLOR_IDLE);
-    this.sprite.setStrokeStyle(2, 0xe0f7fa);
-    this.label.setText(this.gate === "hawk" ? "HAWK" : "BIRD");
-    this.label.setColor("#e0f7fa");
+    this.scene.tweens.killTweensOf(this.art);
+    this.art.setAlpha(1);
+    this.art.setTexture(`${this.prefix}-idle`);
+    idlePulse(this.scene, this.art);
   }
 
   private solve(): void {
     this.solved = true;
-    this.scene.tweens.killTweensOf(this.sprite);
-    this.sprite.setFillStyle(EYE_COLOR_SOLVED);
-    this.sprite.setStrokeStyle(2, 0xffffff);
-    this.label.setText("OK");
-    this.label.setColor("#69f0ae");
+    this.scene.tweens.killTweensOf(this.art);
+    this.art.setAlpha(1);
+    this.art.setTexture(`${this.prefix}-ok`);
     this.onSolved();
   }
 
   private flashWrong(): void {
-    this.scene.tweens.killTweensOf(this.sprite);
-    this.sprite.setFillStyle(EYE_COLOR_WRONG);
+    this.scene.tweens.killTweensOf(this.art);
+    this.art.setTexture(`${this.prefix}-bad`);
     this.scene.tweens.add({
-      targets: this.sprite,
+      targets: this.art,
       alpha: { from: 1, to: 0.4 },
       duration: 80,
       yoyo: true,
       repeat: 2,
       onComplete: () => {
         if (this.solved) return;
-        this.sprite.setAlpha(1);
-        this.sprite.setFillStyle(EYE_COLOR_IDLE);
+        this.art.setAlpha(1);
+        this.art.setTexture(`${this.prefix}-idle`);
+        idlePulse(this.scene, this.art);
       },
     });
   }

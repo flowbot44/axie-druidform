@@ -1,6 +1,6 @@
 {
   "owner": "0xdf8b35668c8fcf82b1d1707875c98cd05b6927c4",
-  "note": "Static snapshot of a puzzle subset (3 Plant, 3 Beast, 3 Bird) from this address. No live Market call.",
+  "note": "Static snapshot of a puzzle subset (3 Plant, 3 Beast, 3 Bird) from this address. No live Market call. Part ids keep the -2 suffix for evolved parts. Optional per-part specialGenes and axie title detect collectibles (Mystic/Origin/Meo); collection signatures are vision, not R1 gameplay.",
   "axies": [
     {
       "id": "10865685",

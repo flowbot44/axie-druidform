@@ -1,5 +1,6 @@
 import Phaser from "phaser";
-import type { PartyMember, AxieClass, AxieParts } from "../config/constants.ts";
+import type { PartyMember, AxieClass, AxiePartClasses, AxieParts, AxieEvolved } from "../config/constants.ts";
+import { axieTextureKey, fitPortrait } from "../config/collection.ts";
 import {
   DRUID_2_RANGE,
   DRUID_2_SPEED,
@@ -12,11 +13,18 @@ import {
   formColor,
   formLabel,
   hawkSpeedMul,
-  isFlyerClass,
   isHeavyClass,
-  lineageScore,
+  pileAffinity,
   type DruidForm,
 } from "../config/forms.ts";
+import { TAILWIND_MUL } from "../config/parts.ts";
+
+const BODY_W = 36;
+const BODY_H = 26;
+const PORTRAIT_BOX = { w: 64, h: 48 };
+const PORTRAIT_BOX_2 = { w: 74, h: 56 };
+const PORTRAIT_BOX_3 = { w: 84, h: 64 };
+const LABEL_LIFT = 32;
 
 /**
  * Axie — a single party member's world representation.
@@ -25,16 +33,22 @@ import {
  */
 export class Axie {
   public readonly slot: number;
+  public readonly id: number;
   public readonly axieClass: AxieClass;
   public readonly parts: AxieParts;
+  public readonly partClasses: AxiePartClasses;
+  public readonly evolved: AxieEvolved;
   public readonly axeName: string;
   public readonly speed: number;
   public readonly baseColor: number;
 
   public readonly sprite: Phaser.GameObjects.Ellipse;
   public readonly body: Phaser.Physics.Arcade.Body;
+  public readonly portrait: Phaser.GameObjects.Image | null;
 
   private readonly indicator: Phaser.GameObjects.Arc;
+  private readonly shadow: Phaser.GameObjects.Ellipse;
+  private readonly formAura: Phaser.GameObjects.Ellipse;
   private readonly slotLabel: Phaser.GameObjects.Text;
   private readonly scene: Phaser.Scene;
 
@@ -45,30 +59,54 @@ export class Axie {
   public form: DruidForm | null = null;
   public lastFacing = { x: 1, y: 0 };
   public lastSafe = { x: 0, y: 0 };
+  public tailwindUntil = 0;
+  private lastTailwindGhost = 0;
 
   constructor(scene: Phaser.Scene, x: number, y: number, config: PartyMember) {
     this.scene = scene;
     this.slot = config.slot;
+    this.id = config.id;
     this.axieClass = config.axieClass;
     this.parts = config.parts;
+    this.partClasses = config.partClasses;
+    this.evolved = config.evolved;
     this.axeName = config.name;
     this.speed = config.speed;
     this.baseColor = config.color;
 
-    this.indicator = scene.add.circle(x, y, 18, 0x000000, 0);
-    this.indicator.setStrokeStyle(2, 0xffffff, 0.8);
+    this.indicator = scene.add.circle(x, y, 26, 0x000000, 0);
+    this.indicator.setStrokeStyle(2, 0xffffff, 0.85);
     this.indicator.setVisible(false);
-    this.indicator.setDepth(0);
+    this.indicator.setDepth(0.9);
 
-    this.sprite = scene.add.ellipse(x, y, 28, 22, config.color);
+    this.shadow = scene.add.ellipse(x, y + 14, 30, 10, 0x000000, 0.3);
+    this.shadow.setDepth(0.92);
+
+    this.formAura = scene.add.ellipse(x, y - 8, 58, 44, 0xffffff, 0);
+    this.formAura.setStrokeStyle(3, 0xffffff, 0);
+    this.formAura.setVisible(false);
+    this.formAura.setDepth(1.3);
+
+    this.sprite = scene.add.ellipse(x, y, BODY_W, BODY_H, config.color);
     this.sprite.setDepth(1);
     scene.physics.add.existing(this.sprite);
     this.body = this.sprite.body as Phaser.Physics.Arcade.Body;
     this.body.setCollideWorldBounds(true);
     this.lastSafe = { x, y };
 
+    const key = axieTextureKey(config.id);
+    if (scene.textures.exists(key)) {
+      this.portrait = scene.add.image(x, y, key);
+      fitPortrait(this.portrait, PORTRAIT_BOX.w, PORTRAIT_BOX.h);
+      this.portrait.setOrigin(0.5, 0.72);
+      this.portrait.setDepth(1.1);
+      this.sprite.setAlpha(0);
+    } else {
+      this.portrait = null;
+    }
+
     this.slotLabel = scene.add
-      .text(x, y - 18, `${config.slot}`, {
+      .text(x, y - LABEL_LIFT, `${config.slot}`, {
         fontSize: "10px",
         color: "#ffffff",
         fontFamily: "monospace",
@@ -121,7 +159,7 @@ export class Axie {
   }
 
   formRating(form: DruidForm): number {
-    return this.pile().reduce((sum, a) => sum + lineageScore(a.axieClass, form), 0);
+    return pileAffinity(this.pile(), form);
   }
 
   isBear(): boolean {
@@ -157,13 +195,22 @@ export class Axie {
       this.axieClass === "Beast" && !this.isDruidHost()
         ? this.speed
         : PLAYER_SPEED;
-    if (!this.isDruidHost()) return base;
+    if (!this.isDruidHost()) {
+      if (this.scene.time.now < this.tailwindUntil) {
+        return Math.floor(base * TAILWIND_MUL);
+      }
+      return base;
+    }
     const sizeMul = this.fusionSize() >= 3 ? DRUID_3_SPEED : DRUID_2_SPEED;
     const flyMul =
       this.form === "hawk"
-        ? hawkSpeedMul(this.lineageCount(isFlyerClass))
+        ? hawkSpeedMul(pileAffinity(this.pile(), "hawk"))
         : 1;
-    return Math.floor(base * sizeMul * flyMul);
+    let spd = Math.floor(base * sizeMul * flyMul);
+    if (this.scene.time.now < this.tailwindUntil) {
+      spd = Math.floor(spd * TAILWIND_MUL);
+    }
+    return spd;
   }
 
   rangeMul(): number {
@@ -179,16 +226,42 @@ export class Axie {
   applyDruidLook(): void {
     const triple = this.fusionSize() >= 3;
     const color = this.form ? formColor(this.form) : 0x9575cd;
-    this.sprite.setFillStyle(color, 1);
+    this.sprite.setFillStyle(color, this.portrait ? 0 : 1);
     this.sprite.setSize(triple ? 36 : 32, triple ? 28 : 24);
+    const box = triple ? PORTRAIT_BOX_3 : PORTRAIT_BOX_2;
+    if (this.portrait) fitPortrait(this.portrait, box.w, box.h);
+    this.portrait?.clearTint();
+    this.scene.tweens.killTweensOf(this.formAura);
+    this.formAura.setVisible(true);
+    this.formAura.setFillStyle(color, 0.22);
+    this.formAura.setStrokeStyle(3, color, 0.8);
+    this.formAura.setScale(triple ? 1.22 : 1.1);
+    this.formAura.setAlpha(1);
+    this.scene.tweens.add({
+      targets: this.formAura,
+      alpha: { from: 1, to: 0.62 },
+      duration: 700,
+      yoyo: true,
+      repeat: -1,
+    });
+    this.shadow.setScale(triple ? 1.4 : 1.25);
     const tag =
       this.form === "bear" ? "B" : this.form === "cat" ? "C" : "H";
     this.slotLabel.setText(`${tag}${triple ? "3" : "2"}`);
   }
 
   restoreLook(): void {
-    this.sprite.setFillStyle(this.baseColor, 1);
-    this.sprite.setSize(28, 22);
+    this.sprite.setFillStyle(this.baseColor, this.portrait ? 0 : 1);
+    this.sprite.setSize(BODY_W, BODY_H);
+    this.portrait?.clearTint();
+    if (this.portrait) {
+      fitPortrait(this.portrait, PORTRAIT_BOX.w, PORTRAIT_BOX.h);
+    }
+    this.scene.tweens.killTweensOf(this.formAura);
+    this.formAura.setVisible(false);
+    this.formAura.setAlpha(1);
+    this.formAura.setScale(1);
+    this.shadow.setScale(1);
     this.slotLabel.setText(`${this.slot}`);
     this.fuseUntil = 0;
     this.form = null;
@@ -196,6 +269,9 @@ export class Axie {
 
   setHidden(hidden: boolean): void {
     this.sprite.setVisible(!hidden);
+    this.portrait?.setVisible(!hidden);
+    this.shadow.setVisible(!hidden);
+    this.formAura.setVisible(!hidden && this.isDruidHost());
     this.slotLabel.setVisible(!hidden);
     this.indicator.setVisible(!hidden && this.indicator.visible);
     this.setBodyEnabled(!hidden);
@@ -213,10 +289,10 @@ export class Axie {
     this.indicator.setVisible(active && this.sprite.visible);
 
     if (active && this.sprite.visible) {
-      this.indicator.setAlpha(0.8);
+      this.indicator.setAlpha(0.85);
       this.scene.tweens.add({
         targets: this.indicator,
-        alpha: { from: 0.8, to: 0.3 },
+        alpha: { from: 0.85, to: 0.3 },
         duration: 800,
         yoyo: true,
         repeat: -1,
@@ -225,8 +301,57 @@ export class Axie {
   }
 
   syncVisuals(): void {
-    this.indicator.setPosition(this.sprite.x, this.sprite.y);
-    this.slotLabel.setPosition(this.sprite.x, this.sprite.y - 18);
+    const x = this.sprite.x;
+    const y = this.sprite.y;
+    const depth = 1 + y * 0.01;
+    this.indicator.setPosition(x, y);
+    this.indicator.setDepth(depth - 0.05);
+    this.shadow.setPosition(x, y + 14);
+    this.shadow.setDepth(depth - 0.04);
+    this.formAura.setPosition(x, y - 8);
+    this.formAura.setDepth(depth + 0.2);
+    this.portrait?.setPosition(x, y);
+    this.portrait?.setFlipX(this.lastFacing.x > 0);
+    this.portrait?.setDepth(depth);
+    this.slotLabel.setPosition(x, y - LABEL_LIFT);
+    this.slotLabel.setDepth(depth + 0.5);
+    if (this.scene.time.now >= this.tailwindUntil) return;
+    if (this.scene.time.now - this.lastTailwindGhost < 55) return;
+    this.lastTailwindGhost = this.scene.time.now;
+    if (this.portrait) {
+      const ghost = this.scene.add.image(x, y, this.portrait.texture.key);
+      ghost.setDisplaySize(
+        this.portrait.displayWidth,
+        this.portrait.displayHeight,
+      );
+      ghost.setOrigin(this.portrait.originX, this.portrait.originY);
+      ghost.setFlipX(this.portrait.flipX);
+      ghost.setTint(0x81d4fa);
+      ghost.setAlpha(0.4);
+      ghost.setDepth(0.96);
+      this.scene.tweens.add({
+        targets: ghost,
+        alpha: 0,
+        duration: 280,
+        onComplete: () => ghost.destroy(),
+      });
+      return;
+    }
+    const blob = this.scene.add.ellipse(
+      x,
+      y,
+      this.sprite.width,
+      this.sprite.height,
+      0x81d4fa,
+      0.4,
+    );
+    blob.setDepth(0.9);
+    this.scene.tweens.add({
+      targets: blob,
+      alpha: 0,
+      duration: 280,
+      onComplete: () => blob.destroy(),
+    });
   }
 
   getWeightTier(): number {

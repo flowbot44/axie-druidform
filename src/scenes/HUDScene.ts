@@ -1,5 +1,8 @@
 import Phaser from "phaser";
+import { axieTextureKey, fitPortrait } from "../config/collection.ts";
 import type { PartyMember } from "../config/constants.ts";
+import { wantsTouch, type TouchAction } from "../config/touch.ts";
+import { TouchControls } from "../ui/TouchControls.ts";
 
 /**
  * HUDScene — always-on overlay (GDD §7).
@@ -24,21 +27,27 @@ export class HUDScene extends Phaser.Scene {
   private objectiveLabel!: Phaser.GameObjects.Text;
   private hintText!: Phaser.GameObjects.Text;
   private formHelp!: Phaser.GameObjects.Text;
+  private toastLabel!: Phaser.GameObjects.Text;
+  private exhaustBg!: Phaser.GameObjects.Rectangle;
+  private exhaustLabel!: Phaser.GameObjects.Text;
+  private retryLabel!: Phaser.GameObjects.Text;
 
   private portraits: {
     fill: Phaser.GameObjects.Arc;
     border: Phaser.GameObjects.Arc;
+    face: Phaser.GameObjects.Image | null;
   }[] = [];
 
   private badgeTexts: Phaser.GameObjects.Text[] = [];
   private party: PartyMember[] = [];
+  private touch: TouchControls | null = null;
 
   constructor() {
     super({ key: "HUDScene" });
   }
 
   create(): void {
-    this.input.enabled = false;
+    this.input.enabled = true;
     this.party = (this.registry.get("party") as PartyMember[] | undefined) ?? [];
 
     const pad = 16;
@@ -96,7 +105,7 @@ export class HUDScene extends Phaser.Scene {
       .setOrigin(0.5, 0);
 
     this.formHelp = this.add
-      .text(w / 2, this.cameras.main.height - pad - 18, "", {
+      .text(w / 2, this.cameras.main.height - pad - 22, "", {
         fontSize: "14px",
         color: "#90a4ae",
         fontFamily: "monospace",
@@ -112,8 +121,67 @@ export class HUDScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 1);
 
+    this.toastLabel = this.add
+      .text(w / 2, this.cameras.main.height / 2 + 48, "", {
+        fontSize: "18px",
+        color: "#ffd54f",
+        fontFamily: "monospace",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setAlpha(0);
+
+    const midY = this.cameras.main.height / 2 - 70;
+    this.exhaustBg = this.add.rectangle(w / 2, midY, 560, 88, 0x1a0a12, 0.92);
+    this.exhaustBg.setStrokeStyle(2, 0xef5350);
+    this.exhaustBg.setDepth(20);
+    this.exhaustBg.setVisible(false);
+
+    this.exhaustLabel = this.add
+      .text(w / 2, midY - 16, "Exhausted — energy 0", {
+        fontSize: "18px",
+        color: "#ef5350",
+        fontFamily: "monospace",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(21)
+      .setVisible(false);
+
+    this.retryLabel = this.add
+      .text(w / 2, midY + 18, "Retry room  ·  +10s", {
+        fontSize: "14px",
+        color: "#ffe082",
+        fontFamily: "monospace",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(21)
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true });
+
+    this.retryLabel.on("pointerdown", () => {
+      this.registry.set("retryRoom", true);
+    });
+
     // ── Bottom-left: slot portraits ──────────────────────────────────
     this.createSlotPortraits(pad);
+
+    if (wantsTouch()) {
+      this.formHelp.setVisible(false);
+      this.hintText.setVisible(false);
+      this.touch = new TouchControls(this, (kind, slot) => {
+        this.registry.set("touchAction", {
+          t: this.time.now,
+          kind,
+          slot,
+        } satisfies TouchAction);
+      });
+      this.registry.set("touchUi", true);
+    } else {
+      this.registry.set("touchUi", false);
+    }
+    this.registry.set("touchDir", { x: 0, y: 0 });
 
     // ── Initial draw ─────────────────────────────────────────────────
     this.refreshStaticHUD();
@@ -139,15 +207,36 @@ export class HUDScene extends Phaser.Scene {
       this.refreshStaticHUD(),
     );
     this.registry.events.on("changedata-hint", () => this.refreshStaticHUD());
+    this.registry.events.on("changedata-toast", () => this.showToast());
+    this.registry.events.on("changedata-formVerb", () =>
+      this.refreshStaticHUD(),
+    );
+  }
+
+  private showToast(): void {
+    const text = (this.registry.get("toast") as string) ?? "";
+    if (!text) return;
+    this.tweens.killTweensOf(this.toastLabel);
+    this.toastLabel.setText(text);
+    this.toastLabel.setAlpha(1);
+    this.tweens.add({
+      targets: this.toastLabel,
+      alpha: 0,
+      delay: 1600,
+      duration: 400,
+    });
   }
 
   update(): void {
-    // Timer updates every frame
     const ms = (this.registry.get("runTime") as number) ?? 0;
     const totalSec = Math.floor(ms / 1000);
     const min = Math.floor(totalSec / 60);
     const sec = totalSec % 60;
     this.timerText.setText(`${min}:${sec.toString().padStart(2, "0")}`);
+    if (this.touch) {
+      this.touch.update();
+      this.registry.set("touchDir", { x: this.touch.dir.x, y: this.touch.dir.y });
+    }
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────
@@ -157,31 +246,45 @@ export class HUDScene extends Phaser.Scene {
 
     for (let i = 0; i < this.party.length; i++) {
       const member = this.party[i]!;
-      const x = pad + 28 + i * 72;
-      const y = h - pad - 36;
+      const x = pad + 36 + i * 92;
+      const y = h - pad - 52;
 
-      // Border circle
-      const border = this.add.circle(x, y, 16, 0x000000, 0);
+      const border = this.add.circle(x, y, 28, 0x000000, 0);
       border.setStrokeStyle(2, 0x666666);
 
-      // Fill circle
-      const fill = this.add.circle(x, y, 14, member.color, 0.3);
+      const fill = this.add.circle(x, y, 26, member.color, 0.35);
 
-      this.portraits.push({ fill, border });
+      const key = axieTextureKey(member.id);
+      let face: Phaser.GameObjects.Image | null = null;
+      if (this.textures.exists(key)) {
+        face = this.add.image(x, y, key);
+        fitPortrait(face, 56, 44);
+      }
 
-      // Slot number
+      this.portraits.push({ fill, border, face });
+
+      border.setInteractive({ useHandCursor: true });
+      border.on("pointerdown", () => {
+        this.registry.set("touchAction", {
+          t: this.time.now,
+          kind: "slot",
+          slot: member.slot,
+        } satisfies TouchAction);
+      });
+
       this.add
-        .text(x, y, `${member.slot}`, {
-          fontSize: "14px",
+        .text(x + 20, y - 20, `${member.slot}`, {
+          fontSize: "11px",
           color: "#ffffff",
           fontFamily: "monospace",
           fontStyle: "bold",
         })
         .setOrigin(0.5);
 
-      // Name below circle
+      const shortName =
+        member.name.length > 12 ? `#${member.id}` : member.name;
       this.add
-        .text(x, y + 22, member.name, {
+        .text(x, y + 32, shortName, {
           fontSize: "10px",
           color: "#aaaaaa",
           fontFamily: "monospace",
@@ -190,7 +293,7 @@ export class HUDScene extends Phaser.Scene {
 
       // State badge below name
       const badge = this.add
-        .text(x, y + 34, "", {
+        .text(x, y + 46, "", {
           fontSize: "9px",
           color: "#888888",
           fontFamily: "monospace",
@@ -208,10 +311,14 @@ export class HUDScene extends Phaser.Scene {
     // Active label
     const fused = (this.registry.get("fused") as string) ?? "";
     const fuseTag = (this.registry.get("fuseTag") as string) ?? "";
+    const formVerb = (this.registry.get("formVerb") as string) ?? "";
+    const verbBit = formVerb ? `  ·  ${formVerb}` : "";
     const active = this.party.find((p) => p.slot === activeSlot);
     if (fused) {
       const tag = fuseTag || "Druidform";
-      this.activeLabel.setText(`${tag} ${fused}  ·  1/2/3 still pick Axies`);
+      this.activeLabel.setText(
+        `${tag} ${fused}${verbBit}  ·  1/2/3 still pick Axies`,
+      );
       this.activeLabel.setColor(
         tag === "Bear" ? "#bcaaa4" : tag === "Cat" ? "#ff9800" : "#42a5f5",
       );
@@ -226,9 +333,8 @@ export class HUDScene extends Phaser.Scene {
           : active.axieClass === "Beast"
             ? "Striker"
             : "Scout";
-      const spec = active.special ? " ★" : "";
       this.activeLabel.setText(
-        `${active.name} — ${role} · ${active.axieClass}${spec}`,
+        `${active.name} — ${role} · ${active.axieClass}${verbBit}`,
       );
       this.activeLabel.setColor(
         `#${active.color.toString(16).padStart(6, "0")}`,
@@ -242,6 +348,11 @@ export class HUDScene extends Phaser.Scene {
     // Energy
     this.energyText.setText(`Energy ${energy}`);
     this.energyText.setColor(energy <= 0 ? "#ef5350" : "#ffeb3b");
+
+    const exhausted = energy <= 0;
+    this.exhaustBg.setVisible(exhausted);
+    this.exhaustLabel.setVisible(exhausted);
+    this.retryLabel.setVisible(exhausted);
 
     // Room
     this.roomLabel.setText(`Room ${roomIndex}`);
@@ -273,12 +384,13 @@ export class HUDScene extends Phaser.Scene {
       const member = this.party[i]!;
       const isActive = member.slot === activeSlot;
 
-      portrait.fill.setFillStyle(member.color, isActive ? 0.9 : 0.3);
+      portrait.fill.setFillStyle(member.color, isActive ? 0.55 : 0.22);
       portrait.border.setStrokeStyle(
         2,
         isActive ? 0xffffff : 0x666666,
         isActive ? 1 : 0.5,
       );
+      portrait.face?.setAlpha(isActive ? 1 : 0.72);
     }
   }
 

@@ -1,12 +1,14 @@
 import Phaser from "phaser";
-import { TILE_SIZE, WHIP_COLOR } from "../config/constants.ts";
+import { TILE_SIZE } from "../config/constants.ts";
+import { ghostBody } from "../art/paint.ts";
 
 /**
- * Root whip — blocks the Treant until the Tank anchors it (GDD §12 Room 5).
+ * Root doorway — the only way east. Bear on the ANCHOR drops it (GDD §12 Room 5).
  */
 export class WhipBarrier {
   public readonly sprite: Phaser.GameObjects.Rectangle;
   public readonly body: Phaser.Physics.Arcade.StaticBody;
+  private readonly art: Phaser.GameObjects.Image;
 
   private isOpen = false;
   private lockUntil = 0;
@@ -14,17 +16,23 @@ export class WhipBarrier {
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.scene = scene;
-    this.sprite = scene.add.rectangle(x, y, TILE_SIZE - 4, TILE_SIZE * 3, WHIP_COLOR);
-    this.sprite.setStrokeStyle(2, 0x3e2723);
+    this.sprite = scene.add.rectangle(x, y, TILE_SIZE - 2, TILE_SIZE * 3, 0x000000, 0);
+    ghostBody(this.sprite);
     this.sprite.setDepth(0.5);
+    this.art = scene.add.image(x, y, "prop-whip").setDepth(0.51);
     scene.physics.add.existing(this.sprite, true);
     this.body = this.sprite.body as Phaser.Physics.Arcade.StaticBody;
+  }
+
+  isBlocking(): boolean {
+    return !this.isOpen;
   }
 
   open(): void {
     if (this.isOpen) return;
     this.isOpen = true;
-    this.sprite.setAlpha(0.2);
+    this.art.setTexture("prop-whip-open");
+    this.art.setAlpha(0.9);
     this.body.enable = false;
   }
 
@@ -32,7 +40,8 @@ export class WhipBarrier {
     if (this.scene.time.now < this.lockUntil) return;
     if (!this.isOpen) return;
     this.isOpen = false;
-    this.sprite.setAlpha(1);
+    this.art.setTexture("prop-whip");
+    this.art.setAlpha(1);
     this.body.enable = true;
     this.body.updateFromGameObject();
   }
@@ -52,7 +61,8 @@ export class WhipBarrier {
   reset(): void {
     this.lockUntil = 0;
     this.isOpen = false;
-    this.sprite.setAlpha(1);
+    this.art.setTexture("prop-whip");
+    this.art.setAlpha(1);
     this.body.enable = true;
     this.body.updateFromGameObject();
   }

@@ -5,14 +5,14 @@ export const ROOM_HEIGHT = 11; // tiles
 export const ROOM_COUNT = 5;
 export const ROOM_PX_W = ROOM_WIDTH * TILE_SIZE;
 export const ROOM_PX_H = ROOM_HEIGHT * TILE_SIZE;
-export const BELL_PENALTY_MS = 10_000;
+export const RETRY_PENALTY_MS = 10_000;
 
 /** Movement (GDD §6, §9) */
 export const PLAYER_SPEED = 160; // px/sec — smooth at 32px tiles
 
-/** Follow tether (GDD §8) */
-export const FOLLOW_DISTANCE = 60; // px gap between leader and each follower
-export const FOLLOW_STOP_THRESHOLD = 8; // px; follower stops when this close to target
+/** Follow tether (GDD §8) — gap matches the cropped stills (~2 tiles). */
+export const FOLLOW_DISTANCE = 80;
+export const FOLLOW_STOP_THRESHOLD = 12;
 export const BREADCRUMB_INTERVAL = 8; // record a breadcrumb every N px of leader movement
 
 /** Fusion / Druidform (GDD §11) */
@@ -61,6 +61,8 @@ export const PIT_INNER = 0x12121f;
 export const TILE_FLOOR = 0;
 export const TILE_WALL = 1;
 export const TILE_PIT = 2;
+/** Walkable overlay after a pit is filled (vines / bridge). */
+export const TILE_FILL = 3;
 
 /** Interactive object colors */
 export const PLATE_COLOR_OFF = 0x555555;
@@ -91,10 +93,46 @@ export const ANCHOR_COLOR_ON = 0x66bb6a;
 export type AxieClass = "Plant" | "Beast" | "Bird" | "Aqua" | "Bug" | "Reptile" | "Mech" | "Dawn" | "Dusk";
 
 export interface AxieParts {
+  readonly eyes: string;
+  readonly ears: string;
   readonly horn: string;
   readonly mouth: string;
   readonly back: string;
   readonly tail: string;
+}
+
+export interface AxieEvolved {
+  readonly eyes: boolean;
+  readonly ears: boolean;
+  readonly mouth: boolean;
+  readonly horn: boolean;
+  readonly back: boolean;
+  readonly tail: boolean;
+}
+
+export type AxieCollection =
+  | "normal"
+  | "mystic"
+  | "origin"
+  | "meo"
+  | "shiny"
+  | "xmas"
+  | "japanese"
+  | "nightmare"
+  | "summer"
+  | "agamo";
+
+/**
+ * The class of each of the Axie's 6 body parts.
+ * Used by the Part Affinity system to score how well an Axie fits each Druidform.
+ */
+export interface AxiePartClasses {
+  readonly eyes: AxieClass;
+  readonly ears: AxieClass;
+  readonly mouth: AxieClass;
+  readonly horn: AxieClass;
+  readonly back: AxieClass;
+  readonly tail: AxieClass;
 }
 
 export interface PartyMember {
@@ -103,6 +141,9 @@ export interface PartyMember {
   readonly name: string;
   readonly axieClass: AxieClass;
   readonly parts: AxieParts;
+  readonly partClasses: AxiePartClasses;
+  readonly evolved: AxieEvolved;
+  readonly collection: AxieCollection;
   readonly color: number;
   readonly speed: number;
   readonly image?: string;
@@ -118,16 +159,16 @@ const W = TILE_WALL;
 const F = TILE_FLOOR;
 const P = TILE_PIT;
 
-/** Room 1 — Entry Hall. Wall bisect; col 10 rows 4–6 are the bramble doorway. */
+/** Room 1 — Wide bramble wedge. Col 10 rows 3–7 are the doorway. */
 export const ROOM_1: number[][] = [
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
   [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
@@ -148,31 +189,31 @@ export const ROOM_2: number[][] = [
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
 ];
 
-/** Room 5 — Boss Chamber placeholder until Step 8. */
+/** Room 5 — Shrine. West foyer, root doorway, east core. No walk-around. */
 export const ROOM_5: number[][] = [
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
 ];
 
-/** Room 4 — Thorn landing. Narrow pit, then a Cat-only bramble gate. */
+/** Room 4 — Narrow pit, then a 5-tile Cat thorn wedge. */
 export const ROOM_4: number[][] = [
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
   [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
@@ -256,23 +297,23 @@ export function worldCenter(
 export const ROOM_COPY: readonly { objective: string; hint: string }[] = [
   { objective: "", hint: "" },
   {
-    objective: "Slash the brambles — Beast, or fuse Cat (X)",
-    hint: "Beast Space  or  E fuse  X Cat  Space  Bell retries",
+    objective: "Slash the wedge — Dual Blade Cleave, or two swings",
+    hint: "X Cat / Beast Space  ·  Dual Blade one Space",
   },
   {
-    objective: "Hover the gap, dart the eye — Bird or Hawk (C)",
-    hint: "Bird hover+dart  or  E fuse  C Hawk  fly and dart",
+    objective: "Dart the eye — Pierce from the west, or hover across",
+    hint: "Pigeon Post Pierce skips the wall  ·  or C Hawk hover then dart",
   },
   {
-    objective: "Bear on the plate, swap to the free Axie, walk through",
-    hint: "E fuse two  Z Bear  stand on plate  1/2/3 the leftover  Bear stays parked",
+    objective: "Bear on the plate — cactus Thorn Hold, or park a Plant",
+    hint: "Cactus slam plants 2s  ·  or park Plant  ·  or Bear then 1/2/3 leftover",
   },
   {
-    objective: "Hawk the pit, then Cat the thorn gate",
-    hint: "C Hawk  fly across  X Cat  slash the thorns  1/2/3 still pick Axies",
+    objective: "Hawk the pit, then Cat the thorn wedge",
+    hint: "C fly across  X Cleave the thorns  ·  Pierce the optional crystal",
   },
   {
-    objective: "Hawk-dart the eye, Bear the anchor, Cat the core",
-    hint: "C dart eye  Z on ANCHOR  swap leftover or X slash CORE",
+    objective: "Hawk-dart the eye, Bear the roots, Cat the core",
+    hint: "Pierce Treant or aim around  ·  Z ANCHOR  ·  X CORE  ·  all three",
   },
 ];

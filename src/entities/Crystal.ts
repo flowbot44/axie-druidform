@@ -1,11 +1,6 @@
 import Phaser from "phaser";
-import {
-  CRYSTAL_COLOR_IDLE,
-  CRYSTAL_COLOR_SOLVED,
-  CRYSTAL_COLOR_WRONG,
-  CRYSTAL_INTERACT_RANGE,
-  TILE_SIZE,
-} from "../config/constants.ts";
+import { CRYSTAL_INTERACT_RANGE, TILE_SIZE } from "../config/constants.ts";
+import { ghostBody, idlePulse } from "../art/paint.ts";
 import type { Axie } from "./Axie.ts";
 
 /**
@@ -16,28 +11,20 @@ export class Crystal {
   public readonly body: Phaser.Physics.Arcade.StaticBody;
 
   private readonly scene: Phaser.Scene;
-  private readonly label: Phaser.GameObjects.Text;
+  private readonly art: Phaser.GameObjects.Image;
   private solved = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.scene = scene;
 
-    this.sprite = scene.add.rectangle(x, y, 20, TILE_SIZE, CRYSTAL_COLOR_IDLE);
-    this.sprite.setStrokeStyle(2, 0xe1bee7);
+    this.sprite = scene.add.rectangle(x, y, 20, TILE_SIZE, 0x000000, 0);
+    ghostBody(this.sprite);
     this.sprite.setDepth(0.4);
+    this.art = scene.add.image(x, y, "prop-crystal-idle").setDepth(0.41);
+    idlePulse(scene, this.art);
 
     scene.physics.add.existing(this.sprite, true);
     this.body = this.sprite.body as Phaser.Physics.Arcade.StaticBody;
-
-    this.label = scene.add
-      .text(x, y - 28, "HAWK", {
-        fontSize: "10px",
-        color: "#e1bee7",
-        fontFamily: "monospace",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setDepth(0.5);
   }
 
   isSolved(): boolean {
@@ -73,38 +60,37 @@ export class Crystal {
 
   reset(): void {
     this.solved = false;
-    this.scene.tweens.killTweensOf(this.sprite);
-    this.sprite.setAlpha(1);
-    this.sprite.setFillStyle(CRYSTAL_COLOR_IDLE);
-    this.sprite.setStrokeStyle(2, 0xe1bee7);
-    this.label.setText("HAWK");
-    this.label.setColor("#e1bee7");
+    this.scene.tweens.killTweensOf(this.art);
+    this.art.setAlpha(1);
+    this.art.clearTint();
+    this.art.setTexture("prop-crystal-idle");
+    idlePulse(this.scene, this.art);
     this.scene.registry.set("crystalSolved", false);
   }
 
   private solve(): void {
     this.solved = true;
-    this.scene.tweens.killTweensOf(this.sprite);
-    this.sprite.setFillStyle(CRYSTAL_COLOR_SOLVED);
-    this.sprite.setStrokeStyle(2, 0xffffff);
-    this.label.setText("OK");
-    this.label.setColor("#80deea");
+    this.scene.tweens.killTweensOf(this.art);
+    this.art.clearTint();
+    this.art.setAlpha(1);
+    this.art.setTexture("prop-crystal-ok");
     this.scene.registry.set("crystalSolved", true);
   }
 
   private flashWrong(): void {
-    this.scene.tweens.killTweensOf(this.sprite);
-    this.sprite.setFillStyle(CRYSTAL_COLOR_WRONG);
+    this.scene.tweens.killTweensOf(this.art);
+    this.art.setTexture("prop-crystal-bad");
     this.scene.tweens.add({
-      targets: this.sprite,
+      targets: this.art,
       alpha: { from: 1, to: 0.4 },
       duration: 80,
       yoyo: true,
       repeat: 2,
       onComplete: () => {
         if (this.solved) return;
-        this.sprite.setAlpha(1);
-        this.sprite.setFillStyle(CRYSTAL_COLOR_IDLE);
+        this.art.setAlpha(1);
+        this.art.setTexture("prop-crystal-idle");
+        idlePulse(this.scene, this.art);
       },
     });
   }

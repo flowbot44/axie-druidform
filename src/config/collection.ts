@@ -1,9 +1,14 @@
+import Phaser from "phaser";
 import {
   PLAYER_SPEED,
   type AxieClass,
+  type AxieCollection,
+  type AxieEvolved,
+  type AxiePartClasses,
   type AxieParts,
   type PartyMember,
 } from "./constants.ts";
+import { specialLine } from "./parts.ts";
 import snapshot from "../data/owned-axies.json";
 
 /**
@@ -11,11 +16,45 @@ import snapshot from "../data/owned-axies.json";
  */
 export const OWNER_ADDRESS = snapshot.owner;
 
+export function axieTextureKey(id: number): string {
+  return `axie-${id}`;
+}
+
+/** Vendored stills. Live CDN 403s on assets.axieinfinity.com. */
+export function axieImagePath(id: number): string {
+  return `/axies/${id}.png`;
+}
+
+export function prepareAxieTexture(
+  textures: Phaser.Textures.TextureManager,
+  id: number,
+): void {
+  const tex = textures.get(axieTextureKey(id));
+  if (!tex || tex.key === "__MISSING") return;
+  tex.setFilter(Phaser.Textures.FilterMode.LINEAR);
+}
+
+/** Keep the 4:3 still. Never force a square — that squishes the body. */
+export function fitPortrait(
+  image: Phaser.GameObjects.Image,
+  maxWidth: number,
+  maxHeight: number,
+): void {
+  const fw = image.frame.width;
+  const fh = image.frame.height;
+  if (fw <= 0 || fh <= 0) return;
+  const scale = Math.min(maxWidth / fw, maxHeight / fh);
+  image.setDisplaySize(Math.round(fw * scale), Math.round(fh * scale));
+}
+
 export interface OwnedAxie {
   readonly id: number;
   readonly name: string;
   readonly axieClass: AxieClass;
   readonly parts: AxieParts;
+  readonly partClasses: AxiePartClasses;
+  readonly evolved: AxieEvolved;
+  readonly collection: AxieCollection;
   readonly color: number;
   readonly speed: number;
   readonly image?: string;
@@ -36,7 +75,16 @@ const CLASS_COLOR: Partial<Record<AxieClass, number>> = {
   Mech: 0x90a4ae,
 };
 
-/** `horn-cactus-2` → cactus, `back-pigeon-post` → pigeon_post */
+const EVO_SLOTS: readonly (keyof AxieEvolved)[] = [
+  "eyes",
+  "ears",
+  "mouth",
+  "horn",
+  "back",
+  "tail",
+];
+
+/** `horn-cactus-2` → cactus, `back-pigeon-post` → pigeon_post. Name kept; evo is a flag. */
 export function partKey(partId: string): string {
   return partId
     .replace(/^(eyes|ears|mouth|horn|back|tail)-/, "")
@@ -44,12 +92,89 @@ export function partKey(partId: string): string {
     .replace(/-/g, "_");
 }
 
+export function isEvolvedPartId(partId: string): boolean {
+  return /-2$/.test(partId);
+}
+
+export function evolvedCount(evo: AxieEvolved): number {
+  let n = 0;
+  for (const slot of EVO_SLOTS) {
+    if (evo[slot]) n += 1;
+  }
+  return n;
+}
+
+export function evoPips(count: number): string {
+  const n = Math.max(0, Math.min(6, count));
+  return "●".repeat(n) + "○".repeat(6 - n);
+}
+
+const SPECIAL_GENES_MAP: Record<string, AxieCollection> = {
+  mystic: "mystic",
+  origin: "origin",
+  meo: "meo",
+  summer2022: "summer",
+  japan: "japanese",
+  xmas2019: "xmas",
+  nightmare: "nightmare",
+  summershiny2022: "shiny",
+  nightmareshiny: "shiny",
+  agamo: "agamo",
+  agamogenesis: "agamo",
+};
+
+const COLLECTION_PRIORITY: Record<AxieCollection, number> = {
+  mystic: 100,
+  origin: 90,
+  agamo: 85,
+  shiny: 80,
+  xmas: 70,
+  meo: 60,
+  japanese: 50,
+  nightmare: 40,
+  summer: 30,
+  normal: 0,
+};
+
+/** Schema for collectibles. Gameplay signatures are vision — parse only. */
+export function detectCollection(
+  parts: { specialGenes?: string | null }[],
+  title?: string,
+  name?: string,
+): AxieCollection {
+  const found: AxieCollection[] = [];
+  for (const p of parts) {
+    const gene = (p.specialGenes || "").toLowerCase().trim();
+    if (!gene) continue;
+    const mapped = SPECIAL_GENES_MAP[gene];
+    if (mapped) found.push(mapped);
+  }
+  if (found.length > 0) {
+    found.sort(
+      (a, b) => (COLLECTION_PRIORITY[b] ?? 0) - (COLLECTION_PRIORITY[a] ?? 0),
+    );
+    return found[0] ?? "normal";
+  }
+  const t = (title || "").trim().toLowerCase();
+  const n = (name || "").trim().toLowerCase();
+  if (t === "origin") return "origin";
+  if (t === "meo corp ii" || t === "meo") return "meo";
+  if (n.includes("origin")) return "origin";
+  return "normal";
+}
+
 export function specialFor(
   parts: AxieParts,
   axieClass: AxieClass,
+  evolved: AxieEvolved,
 ): string | undefined {
-  if (axieClass === "Plant" && parts.horn === "cactus") {
-    return "Cactus horn — slam costs 1";
+  const verb = specialLine(parts);
+  if (verb) return verb;
+  if (evolved.horn && parts.horn === "wing_horn") {
+    return "Wing Horn evo — longer dart";
+  }
+  if (evolved.ears && parts.ears === "clover") {
+    return "Clover evo — first kit −1e";
   }
   if (parts.back === "pumpkin") return "Pumpkin back — +2s Druidform";
   if (axieClass === "Beast" && parts.horn === "imp") {
@@ -59,8 +184,6 @@ export function specialFor(
   if (axieClass === "Bird" && parts.horn === "cuckoo") {
     return "Cuckoo horn — longer dart";
   }
-  if (parts.back === "pigeon_post") return "Pigeon Post — +2s Druidform";
-  if (parts.tail === "swallow") return "Swallow tail — +2s Druidform";
   return undefined;
 }
 
@@ -85,18 +208,48 @@ export function fromSnapshotAxie(raw: {
   name: string;
   class: string;
   image?: string;
-  parts: { id: string; name: string; type: string; class: string }[];
+  title?: string;
+  parts: {
+    id: string;
+    name: string;
+    type: string;
+    class: string;
+    specialGenes?: string | null;
+  }[];
 }): OwnedAxie {
   const axieClass = toAxieClass(raw.class);
   const byType: Record<string, string> = {};
+  const classByType: Record<string, AxieClass> = {};
+  const evoByType: Record<string, boolean> = {};
   for (const p of raw.parts) {
-    byType[p.type.toLowerCase()] = partKey(p.id);
+    const slot = p.type.toLowerCase();
+    byType[slot] = partKey(p.id);
+    classByType[slot] = toAxieClass(p.class);
+    evoByType[slot] = isEvolvedPartId(p.id);
   }
   const parts: AxieParts = {
+    eyes: byType.eyes ?? "unknown",
+    ears: byType.ears ?? "unknown",
     horn: byType.horn ?? "unknown",
     mouth: byType.mouth ?? "unknown",
     back: byType.back ?? "unknown",
     tail: byType.tail ?? "unknown",
+  };
+  const partClasses: AxiePartClasses = {
+    eyes: classByType.eyes ?? axieClass,
+    ears: classByType.ears ?? axieClass,
+    mouth: classByType.mouth ?? axieClass,
+    horn: classByType.horn ?? axieClass,
+    back: classByType.back ?? axieClass,
+    tail: classByType.tail ?? axieClass,
+  };
+  const evolved: AxieEvolved = {
+    eyes: evoByType.eyes ?? false,
+    ears: evoByType.ears ?? false,
+    mouth: evoByType.mouth ?? false,
+    horn: evoByType.horn ?? false,
+    back: evoByType.back ?? false,
+    tail: evoByType.tail ?? false,
   };
   let speed = axieClass === "Beast" ? BEAST_SPEED : PLAYER_SPEED;
   if (parts.back === "ronin") speed = Math.floor(speed * 1.15);
@@ -105,10 +258,13 @@ export function fromSnapshotAxie(raw: {
     name: raw.name || `Axie #${raw.id}`,
     axieClass,
     parts,
+    partClasses,
+    evolved,
+    collection: detectCollection(raw.parts, raw.title, raw.name),
     color: CLASS_COLOR[axieClass] ?? 0xb0bec5,
     speed,
-    image: raw.image,
-    special: specialFor(parts, axieClass),
+    image: axieImagePath(Number(raw.id)),
+    special: specialFor(parts, axieClass, evolved),
   };
 }
 
@@ -130,7 +286,9 @@ export function partCostDelta(axie: {
 export function partRangeMul(axie: {
   parts: AxieParts;
   axieClass: AxieClass;
+  evolved: AxieEvolved;
 }): number {
+  if (axie.parts.horn === "wing_horn" && axie.evolved.horn) return 1.25;
   if (axie.axieClass === "Beast" && axie.parts.horn === "imp") return 1.25;
   if (axie.axieClass === "Bird" && axie.parts.horn === "cuckoo") return 1.25;
   return 1;

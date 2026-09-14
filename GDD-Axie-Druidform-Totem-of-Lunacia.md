@@ -3,7 +3,7 @@
 **Axie Druidform — Totem of Lunacia**  
 Axie Vibeathon · Round 1 Prototype + Product Vision  
 Status: **LOCKED** — matches the current prototype  
-Last updated: 2026-09-10
+Last updated: 2026-09-11
 
 ---
 
@@ -19,14 +19,14 @@ Last updated: 2026-09-10
 
 ## 1. Locked product vision (word-for-word)
 
-> The long-term fantasy of Axie Druidform is commanding Axies you actually own as a tactical fireteam—picking who enters the dungeon, then combining any two or three into Bear, Cat, or Hawk. The form does the puzzle job; the classes and parts you stuffed into it decide how heavy, cheap, or fast that job is.
+> The long-term fantasy of Axie Druidform is commanding Axies you actually own as a tactical fireteam—picking who enters the dungeon, then combining any two or three into Bear, Cat, or Hawk. The form does the puzzle job. The part name changes what Space does. Evolved parts and collectibles are why you brought this body, not any cactus.
 
 **R1 ownership:** `src/data/owned-axies.json` — nine Axies (3 Plant, 3 Beast, 3 Bird) snapshotted from `0xdf8b35668c8fcf82b1d1707875c98cd05b6927c4`. No wallet connect. No live Market call.
 
 **Mixer / Market (vision only):** Axie ID → Market GraphQL genes → Mixer. No player wallet required. API key stays out of the client and public repo.
 
 **Axie Core one-liner:**  
-**Every trio can purify the shrine.** You seek a Plant because Bear hold-time is generous. You seek a Beast because Cat slashes cost less. You seek a Bird because Hawk flies faster. Three of one class still finish — they just spend more energy.
+**Every trio can purify the shrine.** You seek a Plant because Bear is the plate job. You seek a cactus because slam plants Thorn Hold. You seek #10865685 because its Clover is evolved. Three of one class still finish — they just spend more energy. Mystics, Origins, and Meos play the same rooms with a fireteam signature. They are never a gate.
 
 ---
 
@@ -40,11 +40,12 @@ A top-down Zelda-style puzzle-action game where you pick three owned Axies, then
 
 1. **Owned bodies.** Pick 3 from the JSON. No default fireteam.  
 2. **Any trio can finish.** Multiple paths. Mixed classes score better; three Plants still clear.  
-3. **Form is the job; lineage is the stat.** Bear mass, Cat slash, Hawk fly. Who you put in changes the numbers.  
-4. **×2 vs ×3.** More bodies in the pile = better move, range, and fuse clock.  
-5. **Keys do one job.** `1`/`2`/`3` pick Axies. `Z`/`X`/`C` pick forms.  
-6. **Energy is the score.** Planning beats speed.  
-7. **Readable in four minutes.** Wallet-free.
+3. **Form is the job.** Bear plates, Cat slash, Hawk fly. Parts never skip a form’s room.  
+4. **Three layers of “why this Axie.”** Class = which job. Part name = which verb on Space. Evo / collectible = this body, not any cactus.  
+5. **×2 vs ×3.** More bodies in the pile = better move, range, and fuse clock.  
+6. **Keys do one job.** `1`/`2`/`3` pick Axies. `Z`/`X`/`C` pick forms.  
+7. **Energy is the score.** Planning beats speed.  
+8. **Readable in four minutes.** Wallet-free.
 
 ---
 
@@ -56,7 +57,7 @@ Pick **any three**. Slots `1`/`2`/`3` are pick order. Three Plants is legal and 
 
 | Class | Id | Name | Notable parts |
 | --- | --- | --- | --- |
-| Plant | 10865685 | Axie #10865685 | cactus horn |
+| Plant | 10865685 | Axie #10865685 | cactus horn, clover-2 |
 | Plant | 6932506 | T_1 | cactus + pumpkin |
 | Plant | 4060820 | BBP PLANT2 | pumpkin back |
 | Beast | 95221 | Axie #95221 | dual-blade |
@@ -64,7 +65,7 @@ Pick **any three**. Slots `1`/`2`/`3` are pick order. Three Plants is legal and 
 | Beast | 4919477 | Axie #4919477 | dual-blade |
 | Bird | 11070928 | Axie #11070928 | pigeon-post |
 | Bird | 11367315 | Axie #11367315 | swallow |
-| Bird | 12025435 | AOE Bird | — |
+| Bird | 12025435 | AOE Bird | wing-horn-2 |
 
 **Language:** swap, park, fuse, split, **Bear / Cat / Hawk**. Never morph, stack, totem, Chimera Shift, or despawn in HUD. Product title may keep “Totem of Lunacia”; the win object is the **Shrine of Lunacia**.
 
@@ -72,7 +73,7 @@ Pick **any three**. Slots `1`/`2`/`3` are pick order. Three Plants is legal and 
 
 ## 5. Player fantasy
 
-You choose three Axies you own. Unfused they keep class jobs. When you need a body the party does not have, you **fuse** two or three into Druidform and press **`Z` Bear, `X` Cat, `C` Hawk**. Heavier piles hold plates longer. Cat-lineage piles slash cheaper. Flyer piles hawk faster.
+You choose three Axies you own. Unfused they keep class jobs. When you need a body the party does not have, you **fuse** two or three into Druidform and press **`Z` Bear, `X` Cat, `C` Hawk**. The form does the room. The parts in the pile change what Space does (Thorn Hold, Cleave, Pierce). An evolved part or a collectible is why that slot is this Axie, not a generic cactus.
 
 ---
 
@@ -89,16 +90,16 @@ You choose three Axies you own. Unfused they keep class jobs. When you need a bo
 | Input | What it does |
 | --- | --- |
 | Collection click | Pick up to 3, then **Play** |
-| WASD | Move the selected Axie (or the form, if you are driving it) |
-| `1` `2` `3` | **Always pick a party Axie.** Absorbed slots jump to the form body. Switching *off* a form body **auto-parks it** where it stands (Room 3). |
+| WASD / touch stick | Move the selected Axie (or the form, if you are driving it) |
+| `1` `2` `3` / tap portraits | **Always pick a party Axie.** Absorbed slots jump to the form body. Switching *off* a form body **auto-parks it** where it stands (Room 3). |
 | `Tab` | Cycle visible Axies (skips absorbed) |
-| `Z` | **Bear** — plates / slam |
-| `X` | **Cat** — slash |
-| `C` | **Hawk** — fly + dart (vines pits) |
-| `Space` / click | Kit of the body you are driving |
-| `F` | Follow ↔ Park the two inactives as a group |
-| `E` | Fuse nearest ally (3 energy) / add the third (3) / split (0) |
-| Reset Bell | Room retry (+10s, restore `energyOnRoomEnter`, split) |
+| `Z` / Bear | **Bear** — plates / slam |
+| `X` / Cat | **Cat** — slash |
+| `C` / Hawk | **Hawk** — fly + dart (vines pits) |
+| `Space` / click / Kit | Kit of the body you are driving |
+| `F` / Park | Follow ↔ Park the two inactives as a group |
+| `E` / Fuse | Fuse nearest ally (3 energy) / add the third (3) / split (0) |
+| HUD Retry | Energy 0: room retry (+10s, restore `energyOnRoomEnter`, split) |
 
 Form keys work even while you drive the leftover unfused Axie. HUD while fused: **`Z Bear    X Cat    C Hawk`**. Unfused HUD: `E fuse  ·  then Z Bear / X Cat / C Hawk`.
 
@@ -120,7 +121,7 @@ Form keys work even while you drive the leftover unfused Axie. HUD while fused: 
 
 ## 9. Jobs, forms, lineage, parts (LOCK)
 
-**Energy:** 100. No regen. Move / swap / park / split = 0. Fuse = 3 per join. Form switch = 1 if you have energy, **never blocked at 0**.
+**Energy:** 100. Move / swap / park / split = 0. Fuse = 3 per join. Form switch = 1 if you have energy, **never blocked at 0**. No general regen. **Herbivore** (parked) is the exception: 1 energy / 4s, cap 3 per room.
 
 ### Unfused class jobs (still work — the easy mixed path)
 
@@ -161,15 +162,44 @@ Slash cost = `max(1, 2 − Cat-lineage count)`. Three Beasts → 1. Three Plants
 **Hawk — fly faster**  
 Hover speed × `(1 + 0.15 × flyer count)`. Dart cost 2, or **1** if at least one flyer is in the pile. Three Plants can Hawk; they fly at ×1.0 and pay 2 per dart. Hawk dart **always** vines pit tiles it crosses.
 
-### Parts (from JSON)
+### Parts — three layers (LOCK)
+
+Official Core question: *what would make a player seek out a particular Axie for a specific purpose?* This game answers it in three layers. None of them are keys. Any L1 trio still finishes.
+
+| Layer | What you seek | What you get | R1 |
+| --- | --- | --- | --- |
+| 1. Class | a Plant / Beast / Bird | Bear / Cat / Hawk **job** | shipped |
+| 2. Part name | a cactus, a dual-blade, a pigeon-post | which **verb** Space does | shipped |
+| 3a. Evolved (`-2`) | **this** cactus, not T_1’s | the same verb, louder / a body mark | shipped on clover-2 + wing-horn-2 |
+| 3b. Collectible | **your** Mystic / Origin / Meo | fireteam **signature** | schema only; gameplay is §16 |
+
+**Rule:** part name = verb. Evo = intensity of that body. Collectible = how the fireteam exists. Parts do not skip a form’s room. Rare is not “bigger Cleave.”
+
+Named parts change **what Space does**. Affinity still changes numbers. One verb per form (priority).
+
+**Bear** Cactus Thorn Hold > Carrot Root Pull  
+**Cat** Dual Blade Cleave  
+**Hawk** Pigeon Post Pierce > Eggshell Split Dart > Swallow Tailwind
 
 | Part | Effect |
 | --- | --- |
-| cactus horn on a Plant in the pile | Bear slam cost −1 |
-| imp horn on a Beast in the pile | Cat slash range ×1.25 |
+| cactus horn | **Thorn Hold** — slam plants a 2s weight on a nearby plate. Plant cactus still −1 slam cost. |
+| carrot tail | **Root Pull** — slam tugs the nearest parked ally 2 tiles (if no cactus in the pile) |
+| dual-blade horn | **Cleave** — wider slash. Core still needs expose. |
+| pigeon-post back | **Pierce** — dart skips the first wall / Treant. Also +2s fuse. |
+| eggshell horn | **Split Dart** — two bolts at 15° (if no pigeon-post) |
+| swallow tail | **Tailwind** — ×2 move for 2s after dart (if no pigeon-post / eggshell). Also +2s fuse. |
+| herbivore mouth | Parked pile regen 1 energy / 4s, cap 3 per room |
+| imp horn on a Beast | Cat slash range ×1.25 |
 | cuckoo horn | Hawk dart range ×1.25 |
 | ronin back | extra sprint on that body |
-| pumpkin / pigeon-post / swallow | +2s Druidform |
+| pumpkin back | +2s Druidform |
+| **clover ears L2** (`ears-clover-2`) | **Clover evo** — first kit in each room costs −1 energy. Why #10865685 ≠ T_1. |
+| **wing horn L2** (`horn-wing-horn-2`) | **Wing Horn evo** — dart range ×1.25. Why AOE Bird is not a blank card. |
+
+Part names stay (cactus, clover). The `-2` suffix is stored as `evolved` on that slot — not stripped. Evo pips on the collection card (`Evo ●○○○○○`).
+
+Collectible fields on the snapshot (`parts[].specialGenes`, `title`) parse Mystic / Origin / Meo / etc. **No collectible gameplay in R1.** Signatures are vision (§16).
 
 ---
 
@@ -179,9 +209,9 @@ Primary: energy remaining at shrine. Tie-break: time.
 
 | Fail | Result |
 | --- | --- |
-| Energy 0 | Exhaustion (still to ship). Retry room = Bell |
+| Energy 0 | Exhaustion. HUD: Retry room (+10s) |
 | Pit | Snap, split, −3 once |
-| Softlock | Reset Bell every room |
+| Softlock | HUD retry at energy 0 |
 
 ---
 
@@ -246,7 +276,7 @@ Same pile can `C` → `Z` → `X`. Or park/swap leftovers. Or split and use unfu
 
 ### Victory
 
-Energy, time, +250 AXP (Simulated), Ascension line, copyable score. Play again → collection.
+Energy, time, +250 AXP (Simulated), Ascension line, copyable score. Optional name → all-time board (energy first, time tie-break, no wallet). Play again → collection.
 
 ---
 
@@ -254,21 +284,39 @@ Energy, time, +250 AXP (Simulated), Ascension line, copyable score. Play again �
 
 Official prompt: *what would make a player seek out a particular Axie for a specific purpose in your game?*
 
-R1 answer:
+Starting points, not a checklist. Token integration is not required. Basic play stays wallet-free.
 
-- **Class:** Bear hold, Cat cost, Hawk speed.  
-- **That exact body:** cactus, imp, ronin, pumpkin, pigeon-post, swallow.  
+**R1 answer (playable now)**
+
+- **Class → job.** Plant/Bear holds plates. Beast/Cat slashes. Bird/Hawk flies.  
+- **Part name → verb.** Cactus Thorn Hold. Dual Blade Cleave. Pigeon Post Pierce. Eggshell Split. Swallow Tailwind. Carrot Root Pull. Herbivore park regen. One verb per form (priority). Same rooms; Space feels different.  
+- **Evo → this body.** `-2` is kept as a flag. Clover-2: first kit −1e/room (#10865685 ≠ T_1). Wing Horn-2: longer dart (AOE Bird is not blank). Pips on the card.  
 - **How many:** ×3 is strictly better than ×2.  
 - **Mono is allowed:** 3 Plants clear; mixed keeps energy.  
 - **Tokens not required. No wallet.**
 
-| Claim | R1 |
-| --- | --- |
-| Seek a particular Axie | Pick-3 + lineage + parts + form |
-| Fireteam | Three owned bodies; fuse spends them |
-| Core loop | +250 AXP (Simulated) |
-| Ownership | Static JSON from a real address |
-| Combinations | Any 2/3 → Bear / Cat / Hawk |
+That is “seek a cactus” plus “seek the cactus I evolved.” It is not yet “only this Mystic.”
+
+**Vision (same dungeon, later snapshot)**
+
+- **Collectible → fireteam signature.** Mystic / Origin / Meo from `specialGenes` + `title`. Schema is in. Gameplay is §16. Not a bigger Cleave. Not a gate.  
+- **Evo on the verb part** (cactus-2, dual-blade-2) upgrades that verb’s intensity. R1’s evos happen to sit on non-verb slots, so they are body marks.  
+- **Breeding target:** evolve the verb part on a collectible. One Axie, three layers.
+
+**Do not**
+
+- Mystic-only rooms, evo-locked shortcuts, collectible skip-expose.  
+- Let Cat skip Hawk’s pit or Dual Blade skip the exposed core.
+
+| Claim | R1 | Vision |
+| --- | --- | --- |
+| Seek a class | Pick-3 columns | same |
+| Seek a part name | verbs on Space | same |
+| Seek this Axie | clover-2 vs T_1; wing-horn-2 | Mystic/Origin/Meo signatures; evo-on-verb |
+| Fireteam | three owned bodies; fuse spends them | collectible changes how the pile exists |
+| Core loop | +250 AXP (Simulated) | rebuilt JSON from a public address |
+| Ownership | static JSON from a real address | same, no wallet for basic play |
+| Combinations | any 2/3 → Bear / Cat / Hawk | verb + evo + collectible on one body |
 
 ---
 
@@ -281,7 +329,7 @@ Vite + Phaser 3 + TypeScript. Arcade physics. `owned-axies.json` imported at bui
 | Origins Assets Kit | Optional stills |
 | Animated 3D / Three.js mixer (beta) / Unity mixers | Vision only |
 
-Each Axie: `{ slot, id, axieClass, parts, followPark, guests[], absorbedBy, form }`.
+Each Axie: `{ slot, id, axieClass, parts, partClasses, evolved, collection, followPark, guests[], absorbedBy, form }`.
 
 ---
 
@@ -294,6 +342,8 @@ Each Axie: `{ slot, id, axieClass, parts, followPark, guests[], absorbedBy, form
 - Bear / Cat / Hawk on `Z`/`X`/`C`  
 - `1`/`2`/`3` always pick Axies; swap-off auto-parks the form  
 - Lineage stats, 2s floor on Bear hold, Hawk always vines  
+- Named part verbs (Thorn Hold / Cleave / Pierce / Split / Tailwind / Root Pull) + Herbivore park regen  
+- Evolved parts kept (`-2`): Clover-2 first kit −1e, Wing Horn-2 longer dart, evo pips on cards  
 - Room 4 thorn gate (Hawk then Cat)  
 - Boss beats + victory AXP  
 - Any trio can finish  
@@ -314,6 +364,16 @@ Each Axie: `{ slot, id, axieClass, parts, followPark, guests[], absorbedBy, form
 
 Rebuild the JSON from a public address at build time. Named bonuses for Mech (Beast+Bug as Cat) and Dusk (Plant+Reptile as Bear). Mixer later. No default starters if IDs are missing — pick screen stays empty.
 
+**Collectible signatures** (schema is in; gameplay is not). When the snapshot includes `specialGenes` / `title`, a Mystic / Origin / Meo is *this* Axie, not a better cactus:
+
+- **Mystic** — fuse clock does not expire while that body is in the pile.  
+- **Origin** — first fuse in each room costs 0.  
+- **Meo** — parked Meo may fire its class kit once per room without swapping to it.
+
+**Evo on the verb part** (later, when the snapshot has cactus-2 / dual-blade-2): same verb, louder — Thorn Hold lasts 3s, Pierce skips two blockers. Non-verb evos stay body marks (R1 clover-2 / wing-horn-2).
+
+Basic play stays wallet-free. Any L1 trio still finishes. Collectibles and evo are score and fireteam texture, never a gate. Do not add Mystic-only rooms.
+
 ---
 
 ## 17. Submission checklist
@@ -330,18 +390,18 @@ Rebuild the JSON from a public address at build time. Named bonuses for Mech (Be
 
 ## 18. First-play instructions (paste into the form)
 
-Pick any 3 from the collection. No wallet. **Any trio can finish the shrine.** Mixed Plant + Beast + Bird is easiest. Three of one class still clears.  
+Pick any 3 from the collection. No wallet. **Any trio can finish the shrine.** Mixed Plant + Beast + Bird is easiest. Three of one class still clears. Gold line on a card is the part **verb**; cyan **Evo** pips mean that body, not a generic cactus.  
 `WASD` move. `1` `2` `3` pick an Axie (`Tab` cycles). `F` parks the others. `E` fuses a nearby ally.  
 **Forms (not 1/2/3):** `Z` Bear (plates), `X` Cat (slash), `C` Hawk (fly + dart). Switching off the form with `1`/`2`/`3` parks it. `E` again splits.  
 Room 3: fuse two as Bear, stand on the plate, select the leftover Axie, walk through.  
 Room 4: Hawk the pit, Cat the thorns.  
-`Space` uses that job. Energy remaining is the score. Reset Bell if stuck.
+`Space` uses that job. Energy remaining is the score. HUD retry if energy hits 0.
 
 ---
 
 ## 19. Out of scope
 
-Default starters · wallet connect · live Market / API keys · totem stacking · `1`/`2`/`3` as form keys · single-hero morph · requiring Mech/Dusk to finish R1 · per-Axie `F` · partial split · live leaderboard · treating Discord Core as a checklist.
+Default starters · wallet connect · live Market / API keys · totem stacking · `1`/`2`/`3` as form keys · single-hero morph · requiring Mech/Dusk to finish R1 · per-Axie `F` · partial split · wallet / verified leaderboard · treating Discord Core as a checklist · Mystic-only rooms · evo-gated shortcuts · collectible as skip-expose.
 
 ---
 
@@ -349,6 +409,10 @@ Default starters · wallet connect · live Market / API keys · totem stacking �
 
 | Date | Change |
 | --- | --- |
+| 2026-09-14 | Touch: on-screen stick + Kit/Fuse/Park/forms. Portraits pick slots. Landscape prompt on phones. |
+| 2026-09-14 | All-time honor-system board: name + energy + time. No wallet. |
+| 2026-09-11 | Evolved parts kept as flags (no longer strip `-2`). Clover-2: first kit −1e/room. Wing Horn-2: dart range ×1.25. Evo pips on collection cards. Collectible schema (`specialGenes`, `title`) parsed; Mystic/Origin/Meo signatures are vision only. |
+| 2026-09-11 | Named part verbs: Cactus Thorn Hold, Dual Blade Cleave, Pigeon Post Pierce, Eggshell Split Dart, Swallow Tailwind, Carrot Root Pull. Herbivore parked regen (cap 3/room). Collection cards show the verb. One verb per form (priority). Forms still do the rooms. |
 | 2026-09-10 | Synced to prototype: `Z`/`X`/`C` forms, `1`/`2`/`3` always Axies, auto-park on swap-off, any trio can finish, Room 4 is Hawk-then-Cat thorn gate (not a second dart chasm), Hawk always vines, Bear hold floor 2s, form switch never blocked at 0 energy. |
 | 2026-09-09 | Druidform is Bear / Cat / Hawk. Lineage stats. 3-same-class route. |
 | 2026-09-09 | Static `owned-axies.json` pick-3 from 0xdf8b…27c4. |

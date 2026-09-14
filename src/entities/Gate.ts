@@ -1,5 +1,6 @@
 import Phaser from "phaser";
-import { GATE_COLOR_CLOSED, GATE_COLOR_OPEN, TILE_SIZE } from "../config/constants.ts";
+import { TILE_SIZE } from "../config/constants.ts";
+import { ghostBody } from "../art/paint.ts";
 
 /**
  * Gate — a sealed door that can be opened/closed.
@@ -8,15 +9,17 @@ import { GATE_COLOR_CLOSED, GATE_COLOR_OPEN, TILE_SIZE } from "../config/constan
 export class Gate {
   public readonly sprite: Phaser.GameObjects.Rectangle;
   public readonly body: Phaser.Physics.Arcade.StaticBody;
+  private readonly art: Phaser.GameObjects.Image;
 
   private isOpen = false;
   private lockedOpen = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
-    this.sprite = scene.add.rectangle(x, y, TILE_SIZE, TILE_SIZE, GATE_COLOR_CLOSED);
+    this.sprite = scene.add.rectangle(x, y, TILE_SIZE, TILE_SIZE, 0x000000, 0);
+    ghostBody(this.sprite);
     this.sprite.setDepth(0.5);
-    
-    // Static body so it doesn't move when pushed
+    this.art = scene.add.image(x, y, "prop-gate").setDepth(0.51);
+
     scene.physics.add.existing(this.sprite, true);
     this.body = this.sprite.body as Phaser.Physics.Arcade.StaticBody;
   }
@@ -24,11 +27,8 @@ export class Gate {
   open(): void {
     if (this.isOpen) return;
     this.isOpen = true;
-
-    this.sprite.setFillStyle(GATE_COLOR_OPEN);
-    this.sprite.setAlpha(0.2); // Make it look passable
-    
-    // Disable physics body so Axies can walk through
+    this.art.setTexture("prop-gate-open");
+    this.art.setAlpha(1);
     this.body.enable = false;
   }
 
@@ -36,10 +36,8 @@ export class Gate {
     if (this.lockedOpen) return;
     if (!this.isOpen) return;
     this.isOpen = false;
-
-    this.sprite.setFillStyle(GATE_COLOR_CLOSED);
-    this.sprite.setAlpha(1.0);
-
+    this.art.setTexture("prop-gate");
+    this.art.setAlpha(1);
     this.body.enable = true;
     this.body.updateFromGameObject();
   }
@@ -48,8 +46,6 @@ export class Gate {
   lockOpen(): void {
     this.lockedOpen = true;
     this.open();
-    this.sprite.setFillStyle(GATE_COLOR_OPEN);
-    this.sprite.setAlpha(0.35);
   }
 
   unlock(): void {
