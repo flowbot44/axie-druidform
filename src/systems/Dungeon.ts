@@ -29,6 +29,7 @@ import type { PartyManager } from "./PartyManager.ts";
 import { restoreLedger, snapshotLedger } from "../config/energy.ts";
 import { TREANT_BOSS_RADIUS } from "../config/parts.ts";
 import { DungeonLook } from "./DungeonLook.ts";
+import { sfx } from "./Juice.ts";
 
 /**
  * Five-room dungeon: stitched tilemap, room camera, energy snapshot.
@@ -183,6 +184,7 @@ export class Dungeon {
     this.applyRoomCopy(index);
     this.lockCameraToRoom(index, snapCamera);
     this.look.tintRoom(index);
+    if (!snapCamera) sfx.door();
   }
 
   checkLeaderRoom(worldX: number, energy: number): void {
@@ -326,6 +328,8 @@ export class Dungeon {
   private onCoreBroken(): void {
     this.shrineSprite.setTexture("prop-shrine-lit");
     this.scene.registry.set("objective", "Shrine purified");
+    sfx.shrine();
+    this.scene.cameras.main.flash(420, 224, 184, 74, false);
     this.scene.time.delayedCall(900, () => {
       this.victoryQueued = true;
     });

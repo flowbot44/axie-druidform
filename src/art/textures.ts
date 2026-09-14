@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { canvasTexture, fill, hash01, P, px, stamp } from "./paint.ts";
+import { registerFormTextures } from "./forms.ts";
 
 const T = 32;
 
@@ -186,6 +187,8 @@ export function registerDungeonTextures(scene: Phaser.Scene): void {
   canvasTexture(scene, "rim-e", 6, T, (ctx) => pitRim(ctx, "e"));
   canvasTexture(scene, "rim-w", 6, T, (ctx) => pitRim(ctx, "w"));
   canvasTexture(scene, "wall-face", T, 12, wallFace);
+
+  registerFormTextures(scene);
 }
 
 function mushroom(ctx: CanvasRenderingContext2D): void {

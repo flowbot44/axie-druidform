@@ -22,8 +22,6 @@ import { TAILWIND_MUL } from "../config/parts.ts";
 const BODY_W = 36;
 const BODY_H = 26;
 const PORTRAIT_BOX = { w: 64, h: 48 };
-const PORTRAIT_BOX_2 = { w: 74, h: 56 };
-const PORTRAIT_BOX_3 = { w: 84, h: 64 };
 const LABEL_LIFT = 32;
 
 /**
@@ -45,6 +43,7 @@ export class Axie {
   public readonly sprite: Phaser.GameObjects.Ellipse;
   public readonly body: Phaser.Physics.Arcade.Body;
   public readonly portrait: Phaser.GameObjects.Image | null;
+  private readonly formBody: Phaser.GameObjects.Image;
 
   private readonly indicator: Phaser.GameObjects.Arc;
   private readonly shadow: Phaser.GameObjects.Ellipse;
@@ -104,6 +103,11 @@ export class Axie {
     } else {
       this.portrait = null;
     }
+
+    this.formBody = scene.add.image(x, y, "form-bear");
+    this.formBody.setOrigin(0.5, 0.78);
+    this.formBody.setVisible(false);
+    this.formBody.setDepth(1.15);
 
     this.slotLabel = scene.add
       .text(x, y - LABEL_LIFT, `${config.slot}`, {
@@ -228,9 +232,14 @@ export class Axie {
     const color = this.form ? formColor(this.form) : 0x9575cd;
     this.sprite.setFillStyle(color, this.portrait ? 0 : 1);
     this.sprite.setSize(triple ? 36 : 32, triple ? 28 : 24);
-    const box = triple ? PORTRAIT_BOX_3 : PORTRAIT_BOX_2;
-    if (this.portrait) fitPortrait(this.portrait, box.w, box.h);
-    this.portrait?.clearTint();
+    this.portrait?.setVisible(false);
+    const key = this.form ? `form-${this.form}` : "";
+    if (key && this.scene.textures.exists(key)) {
+      this.formBody.setTexture(key);
+      this.formBody.setVisible(true);
+      this.formBody.setScale(triple ? 2.2 : 1.85);
+      this.formBody.clearTint();
+    }
     this.scene.tweens.killTweensOf(this.formAura);
     this.formAura.setVisible(true);
     this.formAura.setFillStyle(color, 0.22);
@@ -253,6 +262,8 @@ export class Axie {
   restoreLook(): void {
     this.sprite.setFillStyle(this.baseColor, this.portrait ? 0 : 1);
     this.sprite.setSize(BODY_W, BODY_H);
+    this.formBody.setVisible(false);
+    this.portrait?.setVisible(true);
     this.portrait?.clearTint();
     if (this.portrait) {
       fitPortrait(this.portrait, PORTRAIT_BOX.w, PORTRAIT_BOX.h);
@@ -269,7 +280,8 @@ export class Axie {
 
   setHidden(hidden: boolean): void {
     this.sprite.setVisible(!hidden);
-    this.portrait?.setVisible(!hidden);
+    this.portrait?.setVisible(!hidden && !this.isDruidHost());
+    this.formBody.setVisible(!hidden && this.isDruidHost());
     this.shadow.setVisible(!hidden);
     this.formAura.setVisible(!hidden && this.isDruidHost());
     this.slotLabel.setVisible(!hidden);
@@ -303,17 +315,23 @@ export class Axie {
   syncVisuals(): void {
     const x = this.sprite.x;
     const y = this.sprite.y;
+    const moving = this.body.speed > 8;
+    const bob = moving ? Math.sin(this.scene.time.now / 85) * 2.2 : 0;
+    const flip = this.lastFacing.x > 0;
     const depth = 1 + y * 0.01;
     this.indicator.setPosition(x, y);
     this.indicator.setDepth(depth - 0.05);
     this.shadow.setPosition(x, y + 14);
     this.shadow.setDepth(depth - 0.04);
-    this.formAura.setPosition(x, y - 8);
-    this.formAura.setDepth(depth + 0.2);
-    this.portrait?.setPosition(x, y);
-    this.portrait?.setFlipX(this.lastFacing.x > 0);
+    this.formAura.setPosition(x, y - 8 + bob);
+    this.formAura.setDepth(depth + 0.05);
+    this.portrait?.setPosition(x, y + bob);
+    this.portrait?.setFlipX(flip);
     this.portrait?.setDepth(depth);
-    this.slotLabel.setPosition(x, y - LABEL_LIFT);
+    this.formBody.setPosition(x, y + bob);
+    this.formBody.setFlipX(flip);
+    this.formBody.setDepth(depth + 0.12);
+    this.slotLabel.setPosition(x, y - LABEL_LIFT + bob);
     this.slotLabel.setDepth(depth + 0.5);
     if (this.scene.time.now >= this.tailwindUntil) return;
     if (this.scene.time.now - this.lastTailwindGhost < 55) return;

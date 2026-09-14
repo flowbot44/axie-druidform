@@ -409,7 +409,8 @@ Default starters · wallet connect · live Market / API keys · totem stacking �
 
 | Date | Change |
 | --- | --- |
-| 2026-09-14 | Touch: on-screen stick + Kit/Fuse/Park/forms. Portraits pick slots. Landscape prompt on phones. |
+| 2026-09-14 | Feel pass: Bear/Cat/Hawk silhouettes, walk bob, hit-stop, energy floaters, SFX. |
+| 2026-09-14 | Touch pad restyle: stone wells, gold rims, icons, larger hits. Portraits top-right on phones. Menu plates. |
 | 2026-09-14 | All-time honor-system board: name + energy + time. No wallet. |
 | 2026-09-11 | Evolved parts kept as flags (no longer strip `-2`). Clover-2: first kit −1e/room. Wing Horn-2: dart range ×1.25. Evo pips on collection cards. Collectible schema (`specialGenes`, `title`) parsed; Mystic/Origin/Meo signatures are vision only. |
 | 2026-09-11 | Named part verbs: Cactus Thorn Hold, Dual Blade Cleave, Pigeon Post Pierce, Eggshell Split Dart, Swallow Tailwind, Carrot Root Pull. Herbivore parked regen (cap 3/room). Collection cards show the verb. One verb per form (priority). Forms still do the rooms. |

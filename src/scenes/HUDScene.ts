@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { axieTextureKey, fitPortrait } from "../config/collection.ts";
 import type { PartyMember } from "../config/constants.ts";
 import { wantsTouch, type TouchAction } from "../config/touch.ts";
+import { plateButton, type PlateButton } from "../ui/menuButton.ts";
 import { TouchControls } from "../ui/TouchControls.ts";
 
 /**
@@ -31,6 +32,7 @@ export class HUDScene extends Phaser.Scene {
   private exhaustBg!: Phaser.GameObjects.Rectangle;
   private exhaustLabel!: Phaser.GameObjects.Text;
   private retryLabel!: Phaser.GameObjects.Text;
+  private retryPlate: PlateButton | null = null;
 
   private portraits: {
     fill: Phaser.GameObjects.Arc;
@@ -148,21 +150,19 @@ export class HUDScene extends Phaser.Scene {
       .setDepth(21)
       .setVisible(false);
 
-    this.retryLabel = this.add
-      .text(w / 2, midY + 18, "Retry room  ·  +10s", {
-        fontSize: "14px",
-        color: "#ffe082",
-        fontFamily: "monospace",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setDepth(21)
-      .setVisible(false)
-      .setInteractive({ useHandCursor: true });
-
-    this.retryLabel.on("pointerdown", () => {
-      this.registry.set("retryRoom", true);
-    });
+    this.retryPlate = plateButton(
+      this,
+      w / 2,
+      midY + 22,
+      "Retry room  ·  +10s",
+      () => {
+        this.registry.set("retryRoom", true);
+      },
+      { width: 280, height: 48, stroke: 0xffe082, color: "#ffe082", depth: 21 },
+    );
+    this.retryLabel = this.retryPlate.text;
+    this.retryPlate.bg.setVisible(false);
+    this.retryLabel.setVisible(false);
 
     // ── Bottom-left: slot portraits ──────────────────────────────────
     this.createSlotPortraits(pad);
@@ -243,28 +243,32 @@ export class HUDScene extends Phaser.Scene {
 
   private createSlotPortraits(pad: number): void {
     const h = this.cameras.main.height;
+    const w = this.cameras.main.width;
+    const touch = wantsTouch();
 
     for (let i = 0; i < this.party.length; i++) {
       const member = this.party[i]!;
-      const x = pad + 36 + i * 92;
-      const y = h - pad - 52;
+      const x = touch ? w - 220 + i * 72 : pad + 36 + i * 92;
+      const y = touch ? 86 : h - pad - 52;
+      const faceW = touch ? 48 : 56;
+      const faceH = touch ? 38 : 44;
 
-      const border = this.add.circle(x, y, 28, 0x000000, 0);
+      const border = this.add.circle(x, y, touch ? 26 : 28, 0x000000, 0);
       border.setStrokeStyle(2, 0x666666);
 
-      const fill = this.add.circle(x, y, 26, member.color, 0.35);
+      const fill = this.add.circle(x, y, touch ? 24 : 26, member.color, 0.35);
 
       const key = axieTextureKey(member.id);
       let face: Phaser.GameObjects.Image | null = null;
       if (this.textures.exists(key)) {
         face = this.add.image(x, y, key);
-        fitPortrait(face, 56, 44);
+        fitPortrait(face, faceW, faceH);
       }
 
       this.portraits.push({ fill, border, face });
 
-      border.setInteractive({ useHandCursor: true });
-      border.on("pointerdown", () => {
+      const hit = this.add.zone(x, y, 72, 72).setInteractive({ useHandCursor: true });
+      hit.on("pointerdown", () => {
         this.registry.set("touchAction", {
           t: this.time.now,
           kind: "slot",
@@ -273,7 +277,7 @@ export class HUDScene extends Phaser.Scene {
       });
 
       this.add
-        .text(x + 20, y - 20, `${member.slot}`, {
+        .text(x + (touch ? 18 : 20), y - 18, `${member.slot}`, {
           fontSize: "11px",
           color: "#ffffff",
           fontFamily: "monospace",
@@ -281,19 +285,20 @@ export class HUDScene extends Phaser.Scene {
         })
         .setOrigin(0.5);
 
-      const shortName =
-        member.name.length > 12 ? `#${member.id}` : member.name;
-      this.add
-        .text(x, y + 32, shortName, {
-          fontSize: "10px",
-          color: "#aaaaaa",
-          fontFamily: "monospace",
-        })
-        .setOrigin(0.5, 0);
+      if (!touch) {
+        const shortName =
+          member.name.length > 12 ? `#${member.id}` : member.name;
+        this.add
+          .text(x, y + 32, shortName, {
+            fontSize: "10px",
+            color: "#aaaaaa",
+            fontFamily: "monospace",
+          })
+          .setOrigin(0.5, 0);
+      }
 
-      // State badge below name
       const badge = this.add
-        .text(x, y + 46, "", {
+        .text(x, y + (touch ? 30 : 46), "", {
           fontSize: "9px",
           color: "#888888",
           fontFamily: "monospace",
@@ -317,7 +322,9 @@ export class HUDScene extends Phaser.Scene {
     if (fused) {
       const tag = fuseTag || "Druidform";
       this.activeLabel.setText(
-        `${tag} ${fused}${verbBit}  ·  1/2/3 still pick Axies`,
+        this.touch
+          ? `${tag}${verbBit}`
+          : `${tag} ${fused}${verbBit}  ·  1/2/3 still pick Axies`,
       );
       this.activeLabel.setColor(
         tag === "Bear" ? "#bcaaa4" : tag === "Cat" ? "#ff9800" : "#42a5f5",
@@ -353,6 +360,8 @@ export class HUDScene extends Phaser.Scene {
     this.exhaustBg.setVisible(exhausted);
     this.exhaustLabel.setVisible(exhausted);
     this.retryLabel.setVisible(exhausted);
+    this.retryPlate?.bg.setVisible(exhausted);
+    this.touch?.setActiveForm(fused ? fuseTag : "");
 
     // Room
     this.roomLabel.setText(`Room ${roomIndex}`);

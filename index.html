@@ -49,6 +49,12 @@
         justify-content: center;
         text-align: center;
         padding: 24px;
+        flex-direction: column;
+        gap: 12px;
+      }
+      #rotate small {
+        color: #90a4ae;
+        font-size: 14px;
       }
       @media (orientation: portrait) and (pointer: coarse) {
         #rotate {
@@ -58,7 +64,7 @@
     </style>
   </head>
   <body>
-    <div id="rotate">Turn the phone sideways to play</div>
+    <div id="rotate">Turn sideways<small>The dungeon is built for landscape</small></div>
     <div id="game"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

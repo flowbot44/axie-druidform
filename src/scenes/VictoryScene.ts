@@ -3,6 +3,7 @@ import { SIMULATED_AXP, type PartyMember } from "../config/constants.ts";
 import { emptyLedger, readLedger } from "../config/energy.ts";
 import { normalizeName, submitScore } from "../config/leaderboard.ts";
 import { wantsTouch } from "../config/touch.ts";
+import { plateButton } from "../ui/menuButton.ts";
 import {
   bearVerb,
   catVerb,
@@ -160,51 +161,44 @@ export class VictoryScene extends Phaser.Scene {
       this.refreshName();
     });
 
-    this.submitLabel = this.add
-      .text(w / 2, 492, "Submit to board", {
-        fontSize: "18px",
-        color: "#ffd54f",
-        fontFamily: "monospace",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    this.submitLabel.on("pointerdown", () => {
-      void this.submit(energy, ms);
-    });
+    this.submitLabel = plateButton(
+      this,
+      w / 2,
+      492,
+      "Submit to board",
+      () => {
+        void this.submit(energy, ms);
+      },
+      { width: 300, height: 48, stroke: 0xe0b84a, color: "#ffd54f" },
+    ).text;
 
-    const board = this.add
-      .text(w / 2, 526, "View board", {
-        fontSize: "16px",
-        color: "#80deea",
-        fontFamily: "monospace",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    board.on("pointerdown", () => {
-      this.editingName = false;
-      this.scene.pause("VictoryScene");
-      this.scene.launch("LeaderboardScene", { from: "VictoryScene" });
-    });
+    plateButton(
+      this,
+      w / 2,
+      548,
+      "View board",
+      () => {
+        this.editingName = false;
+        this.scene.pause("VictoryScene");
+        this.scene.launch("LeaderboardScene", { from: "VictoryScene" });
+      },
+      { width: 260, height: 44, stroke: 0x80deea, color: "#80deea", fontSize: "16px" },
+    );
 
-    const again = this.add
-      .text(w / 2, 568, "Play again", {
-        fontSize: "18px",
-        color: "#ffffff",
-        fontFamily: "monospace",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-
-    again.on("pointerdown", () => {
-      this.scene.stop("VictoryScene");
-      this.scene.stop("LeaderboardScene");
-      this.scene.stop("HUDScene");
-      this.scene.stop("GameScene");
-      this.scene.start("CollectionScene");
-    });
+    plateButton(
+      this,
+      w / 2,
+      600,
+      "Play again",
+      () => {
+        this.scene.stop("VictoryScene");
+        this.scene.stop("LeaderboardScene");
+        this.scene.stop("HUDScene");
+        this.scene.stop("GameScene");
+        this.scene.start("CollectionScene");
+      },
+      { width: 260, height: 48 },
+    );
 
     this.input.keyboard?.on("keydown", (ev: KeyboardEvent) => {
       if (!this.editingName) return;
@@ -232,7 +226,7 @@ export class VictoryScene extends Phaser.Scene {
   private refreshName(): void {
     const shown = this.runnerName.length > 0 ? this.runnerName : "Player";
     this.nameLabel.setText(
-      this.editingName ? `Name  ${shown}_` : `Name  ${shown}  ·  click to type`,
+      this.editingName ? `Name  ${shown}_` : `Name  ${shown}  ·  ${wantsTouch() ? "tap to set" : "click to type"}`,
     );
   }
 

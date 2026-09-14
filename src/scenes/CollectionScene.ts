@@ -10,6 +10,7 @@ import {
   type OwnedAxie,
 } from "../config/collection.ts";
 import type { PartyMember } from "../config/constants.ts";
+import { plateButton, type PlateButton } from "../ui/menuButton.ts";
 import {
   pileAffinity,
   bearHoldMs,
@@ -32,7 +33,7 @@ import {
  */
 export class CollectionScene extends Phaser.Scene {
   private selected: OwnedAxie[] = [];
-  private playLabel!: Phaser.GameObjects.Text;
+  private playBtn!: PlateButton;
   private pickLabel!: Phaser.GameObjects.Text;
   private previewLabel!: Phaser.GameObjects.Text;
   private readonly cardHi: Phaser.GameObjects.Rectangle[] = [];
@@ -64,18 +65,16 @@ export class CollectionScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const board = this.add
-      .text(w - 16, 28, "Board", {
-        fontSize: "16px",
-        color: "#e0b84a",
-        fontFamily: "monospace",
-        fontStyle: "bold",
-      })
-      .setOrigin(1, 0.5)
-      .setInteractive({ useHandCursor: true });
-    board.on("pointerdown", () => {
-      this.scene.start("LeaderboardScene", { from: "CollectionScene" });
-    });
+    plateButton(
+      this,
+      w - 90,
+      32,
+      "Board",
+      () => {
+        this.scene.start("LeaderboardScene", { from: "CollectionScene" });
+      },
+      { width: 120, height: 40, fontSize: "16px", color: "#e0b84a" },
+    );
 
     const short = `${OWNER_ADDRESS.slice(0, 6)}…${OWNER_ADDRESS.slice(-4)}`;
     this.add
@@ -152,17 +151,13 @@ export class CollectionScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.playLabel = this.add
-      .text(w / 2, 650, "", {
-        fontSize: "20px",
-        color: "#546e7a",
-        fontFamily: "monospace",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5);
-
-    this.playLabel.setInteractive({ useHandCursor: true });
-    this.playLabel.on("pointerdown", () => this.tryPlay());
+    this.playBtn = plateButton(this, w / 2, 652, "Select 3", () => this.tryPlay(), {
+      width: 320,
+      height: 52,
+      fontSize: "20px",
+      color: "#f5e6c8",
+    });
+    this.playBtn.setArmed(false);
 
     this.add
       .text(
@@ -281,8 +276,9 @@ export class CollectionScene extends Phaser.Scene {
     );
 
     const ready = this.selected.length === 3;
-    this.playLabel.setText(ready ? "Play" : `Select ${3 - this.selected.length} more`);
-    this.playLabel.setColor(ready ? "#69f0ae" : "#546e7a");
+    this.playBtn.setLabel(ready ? "Play" : `Select ${3 - this.selected.length} more`);
+    this.playBtn.setArmed(ready);
+    this.playBtn.text.setColor(ready ? "#c8f5d4" : "#a09070");
 
     // Team build preview — show form stats based on pile affinity
     if (this.selected.length >= 2) {

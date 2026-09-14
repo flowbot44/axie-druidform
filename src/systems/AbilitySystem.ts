@@ -38,6 +38,7 @@ import {
   toastOnce,
   verbToast,
 } from "../config/parts.ts";
+import { hitStop, kick, sfx, spendAt } from "./Juice.ts";
 
 export interface AbilityTargets {
   brambles?: Bramble[];
@@ -72,10 +73,14 @@ export class AbilitySystem {
     if (!kit) return false;
 
     const energy = (this.scene.registry.get("energy") as number) ?? 0;
-    if (energy < kit.cost) return false;
+    if (energy < kit.cost) {
+      sfx.fail();
+      return false;
+    }
 
     this.scene.registry.set("energy", energy - kit.cost);
     bumpLedger(this.scene, "kit", kit.cost);
+    spendAt(this.scene, origin.x, origin.y, kit.cost);
     if (kit.cactusSaved > 0) bumpLedger(this.scene, "cactusSaved", kit.cactusSaved);
     if (kit.clover) {
       bumpLedger(this.scene, "cloverSaved", 1);
@@ -184,6 +189,9 @@ export class AbilitySystem {
       onComplete: () => ring.destroy(),
     });
     this.scene.cameras.main.shake(70, 0.004);
+    sfx.slam();
+    hitStop(this.scene, 50);
+    kick(this.scene, 0.007, 80);
     targets.anchor?.trySlamLock(origin);
 
     if (verb === "thorn_hold") {
@@ -269,6 +277,8 @@ export class AbilitySystem {
     const reach = SLASH_REACH * rangeMul;
 
     this.drawSlice(origin.x, origin.y, reach, facingAngle, halfArc, color);
+    sfx.slash();
+    hitStop(this.scene, 32);
     if (arcDeg >= CLEAVE_ARC_DEG) {
       this.drawSlice(
         origin.x,
@@ -343,6 +353,8 @@ export class AbilitySystem {
         impactX = eye.sprite.x;
         impactY = eye.sprite.y;
         hitEye = true;
+        sfx.crystal();
+        hitStop(this.scene, 40);
         break;
       }
       if (hitEye) break;
@@ -355,11 +367,14 @@ export class AbilitySystem {
         crystal.receiveHit(attacker);
         impactX = crystal.sprite.x;
         impactY = crystal.sprite.y;
+        sfx.crystal();
+        hitStop(this.scene, 40);
         break;
       }
     }
 
     const color = seed ? 0xb39ddb : pierceSkips > 0 ? 0xfff59d : 0x42a5f5;
+    sfx.dart();
     const bolt = this.scene.add.rectangle(
       origin.x,
       origin.y,

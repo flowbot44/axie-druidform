@@ -21,6 +21,7 @@ import {
 import { partFuseBonusMs } from "../config/collection.ts";
 import { bumpLedger } from "../config/energy.ts";
 import { defaultFormFor, formLabel, type DruidForm } from "../config/forms.ts";
+import { floater, hitStop, sfx, spendAt } from "./Juice.ts";
 import {
   HERBIVORE_CAP_PER_ROOM,
   HERBIVORE_PERIOD_MS,
@@ -200,6 +201,11 @@ export class PartyManager {
     bumpLedger(this.scene, "herbivore", 1);
     this.herbivoreGained += 1;
     this.herbivoreNextAt = now + HERBIVORE_PERIOD_MS;
+    const src = parked[0];
+    if (src) {
+      sfx.heal();
+      floater(this.scene, src.sprite.x, src.sprite.y, "+1", "#81c784");
+    }
     toastOnce(this.scene, "herbivore", "Herbivore — parked regen");
   }
 
@@ -221,6 +227,7 @@ export class PartyManager {
         axie.followPark = this.groupFollowPark;
       }
     }
+    sfx.park();
     this.syncRegistry();
   }
 
@@ -405,9 +412,14 @@ export class PartyManager {
 
   private spendFuseCost(): boolean {
     const energy = (this.scene.registry.get("energy") as number) ?? 0;
-    if (energy < FUSE_COST) return false;
+    if (energy < FUSE_COST) {
+      sfx.fail();
+      return false;
+    }
+    const active = this.getActive();
     this.scene.registry.set("energy", energy - FUSE_COST);
     bumpLedger(this.scene, "fuse", FUSE_COST);
+    spendAt(this.scene, active.sprite.x, active.sprite.y, FUSE_COST);
     return true;
   }
 
@@ -426,9 +438,12 @@ export class PartyManager {
     if (energy >= FORM_SWITCH_COST) {
       this.scene.registry.set("energy", energy - FORM_SWITCH_COST);
       bumpLedger(this.scene, "formSwitch", FORM_SWITCH_COST);
+      spendAt(this.scene, host.sprite.x, host.sprite.y, FORM_SWITCH_COST);
     }
     host.form = form;
     host.applyDruidLook();
+    sfx.form();
+    hitStop(this.scene, 30);
     this.syncRegistry();
   }
 
@@ -471,6 +486,8 @@ export class PartyManager {
       duration: 280,
       onComplete: () => pop.destroy(),
     });
+    sfx.fuse();
+    hitStop(this.scene, 40);
   }
 
   private split(host: Axie): void {
@@ -493,6 +510,7 @@ export class PartyManager {
       );
     }
     host.body.reset(host.sprite.x, host.sprite.y);
+    sfx.split();
     this.updateActiveVisuals();
     this.syncRegistry();
   }
@@ -587,6 +605,9 @@ export class PartyManager {
     const lost = Math.min(PIT_FALL_COST, energy);
     this.scene.registry.set("energy", energy - lost);
     bumpLedger(this.scene, "pit", lost);
+    const driven = this.getActive();
+    sfx.pit();
+    if (lost > 0) floater(this.scene, driven.sprite.x, driven.sprite.y, `−${lost}`, "#ef5350");
 
     for (const axie of this.axies) {
       if (axie.isAbsorbed()) continue;

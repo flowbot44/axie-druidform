@@ -5,6 +5,7 @@ import {
   LEADERBOARD_TOP,
   type ScoreEntry,
 } from "../config/leaderboard.ts";
+import { plateButton } from "../ui/menuButton.ts";
 
 /**
  * All-time board. Energy first, time tie-break. Honor system, no wallet.
@@ -45,24 +46,21 @@ export class LeaderboardScene extends Phaser.Scene {
       })
       .setOrigin(0.5, 0);
 
-    const back = this.add
-      .text(w / 2, h - 48, from === "VictoryScene" ? "Back to victory" : "Back", {
-        fontSize: "18px",
-        color: "#ffffff",
-        fontFamily: "monospace",
-        fontStyle: "bold",
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-
-    back.on("pointerdown", () => {
-      this.scene.stop("LeaderboardScene");
-      if (from === "VictoryScene") {
-        this.scene.resume("VictoryScene");
-        return;
-      }
-      this.scene.start("CollectionScene");
-    });
+    plateButton(
+      this,
+      w / 2,
+      h - 52,
+      from === "VictoryScene" ? "Back to victory" : "Back",
+      () => {
+        this.scene.stop("LeaderboardScene");
+        if (from === "VictoryScene") {
+          this.scene.resume("VictoryScene");
+          return;
+        }
+        this.scene.start("CollectionScene");
+      },
+      { width: 280, height: 48 },
+    );
 
     void fetchBoard()
       .then((scores) => {
