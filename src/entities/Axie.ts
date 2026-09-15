@@ -22,6 +22,19 @@ import { TAILWIND_MUL } from "../config/parts.ts";
 const BODY_W = 36;
 const BODY_H = 26;
 const PORTRAIT_BOX = { w: 64, h: 48 };
+const INSIDE_BOX = { w: 26, h: 20 };
+const FORM_SIZE: Record<string, { w: number; h: number }> = {
+  bear: { w: 92, h: 78 },
+  cat: { w: 96, h: 80 },
+  hawk: { w: 118, h: 90 },
+};
+
+/** Chest knot. Offsets assume the animal faces left; caller flips X. */
+function insideOffsets(count: number): { x: number; y: number }[] {
+  if (count <= 1) return [{ x: -6, y: -14 }];
+  if (count === 2) return [{ x: -10, y: -14 }, { x: 6, y: -10 }];
+  return [{ x: -4, y: -18 }, { x: -12, y: -6 }, { x: 8, y: -6 }];
+}
 const LABEL_LIFT = 32;
 
 /**
@@ -104,10 +117,13 @@ export class Axie {
       this.portrait = null;
     }
 
-    this.formBody = scene.add.image(x, y, "form-bear");
-    this.formBody.setOrigin(0.5, 0.78);
+    const formKey = scene.textures.exists("form-beast-bear")
+      ? "form-beast-bear"
+      : "form-shell-bear";
+    this.formBody = scene.add.image(x, y, formKey);
+    this.formBody.setOrigin(0.5, 0.86);
     this.formBody.setVisible(false);
-    this.formBody.setDepth(1.15);
+    this.formBody.setDepth(1.05);
 
     this.slotLabel = scene.add
       .text(x, y - LABEL_LIFT, `${config.slot}`, {
@@ -232,28 +248,33 @@ export class Axie {
     const color = this.form ? formColor(this.form) : 0x9575cd;
     this.sprite.setFillStyle(color, this.portrait ? 0 : 1);
     this.sprite.setSize(triple ? 36 : 32, triple ? 28 : 24);
-    this.portrait?.setVisible(false);
-    const key = this.form ? `form-${this.form}` : "";
-    if (key && this.scene.textures.exists(key)) {
+    this.portrait?.setVisible(true);
+    if (this.portrait) fitPortrait(this.portrait, INSIDE_BOX.w, INSIDE_BOX.h);
+    for (const guest of this.guests) {
+      guest.portrait?.setVisible(true);
+      if (guest.portrait) fitPortrait(guest.portrait, INSIDE_BOX.w, INSIDE_BOX.h);
+    }
+    const beast = this.form ? `form-beast-${this.form}` : "";
+    const shell = this.form ? `form-shell-${this.form}` : "";
+    const key =
+      beast && this.scene.textures.exists(beast)
+        ? beast
+        : shell && this.scene.textures.exists(shell)
+          ? shell
+          : "";
+    if (key) {
       this.formBody.setTexture(key);
       this.formBody.setVisible(true);
-      this.formBody.setScale(triple ? 2.2 : 1.85);
+      const size = (this.form && FORM_SIZE[this.form]) || { w: 92, h: 78 };
+      const k = triple ? 1.12 : 1;
+      this.formBody.setDisplaySize(size.w * k, size.h * k);
+      this.formBody.setAlpha(0.9);
       this.formBody.clearTint();
     }
     this.scene.tweens.killTweensOf(this.formAura);
-    this.formAura.setVisible(true);
-    this.formAura.setFillStyle(color, 0.22);
-    this.formAura.setStrokeStyle(3, color, 0.8);
-    this.formAura.setScale(triple ? 1.22 : 1.1);
-    this.formAura.setAlpha(1);
-    this.scene.tweens.add({
-      targets: this.formAura,
-      alpha: { from: 1, to: 0.62 },
-      duration: 700,
-      yoyo: true,
-      repeat: -1,
-    });
-    this.shadow.setScale(triple ? 1.4 : 1.25);
+    this.formAura.setVisible(false);
+    this.indicator.setVisible(false);
+    this.shadow.setScale(triple ? 1.55 : 1.35);
     const tag =
       this.form === "bear" ? "B" : this.form === "cat" ? "C" : "H";
     this.slotLabel.setText(`${tag}${triple ? "3" : "2"}`);
@@ -280,13 +301,20 @@ export class Axie {
 
   setHidden(hidden: boolean): void {
     this.sprite.setVisible(!hidden);
-    this.portrait?.setVisible(!hidden && !this.isDruidHost());
-    this.formBody.setVisible(!hidden && this.isDruidHost());
     this.shadow.setVisible(!hidden);
-    this.formAura.setVisible(!hidden && this.isDruidHost());
+    this.formAura.setVisible(false);
+    this.formBody.setVisible(!hidden && this.isDruidHost());
     this.slotLabel.setVisible(!hidden);
     this.indicator.setVisible(!hidden && this.indicator.visible);
     this.setBodyEnabled(!hidden);
+    if (this.isAbsorbed()) {
+      this.portrait?.setVisible(true);
+    } else {
+      this.portrait?.setVisible(!hidden);
+      if (!hidden && this.portrait && !this.isDruidHost()) {
+        fitPortrait(this.portrait, PORTRAIT_BOX.w, PORTRAIT_BOX.h);
+      }
+    }
   }
 
   setBodyEnabled(enabled: boolean): void {
@@ -298,9 +326,10 @@ export class Axie {
 
   setActive(active: boolean): void {
     this.scene.tweens.killTweensOf(this.indicator);
-    this.indicator.setVisible(active && this.sprite.visible);
+    const show = active && this.sprite.visible && !this.isDruidHost();
+    this.indicator.setVisible(show);
 
-    if (active && this.sprite.visible) {
+    if (show) {
       this.indicator.setAlpha(0.85);
       this.scene.tweens.add({
         targets: this.indicator,
@@ -313,25 +342,39 @@ export class Axie {
   }
 
   syncVisuals(): void {
+    if (this.absorbedBy) {
+      this.syncInsideHost(this.absorbedBy);
+      return;
+    }
+
     const x = this.sprite.x;
     const y = this.sprite.y;
     const moving = this.body.speed > 8;
     const bob = moving ? Math.sin(this.scene.time.now / 85) * 2.2 : 0;
     const flip = this.lastFacing.x > 0;
+    const sign = flip ? -1 : 1;
     const depth = 1 + y * 0.01;
     this.indicator.setPosition(x, y);
     this.indicator.setDepth(depth - 0.05);
-    this.shadow.setPosition(x, y + 14);
+    this.shadow.setPosition(x, y + (this.isDruidHost() ? 18 : 14));
     this.shadow.setDepth(depth - 0.04);
     this.formAura.setPosition(x, y - 8 + bob);
     this.formAura.setDepth(depth + 0.05);
-    this.portrait?.setPosition(x, y + bob);
-    this.portrait?.setFlipX(flip);
-    this.portrait?.setDepth(depth);
     this.formBody.setPosition(x, y + bob);
     this.formBody.setFlipX(flip);
-    this.formBody.setDepth(depth + 0.12);
-    this.slotLabel.setPosition(x, y - LABEL_LIFT + bob);
+    this.formBody.setDepth(depth + 0.06);
+    if (this.isDruidHost() && this.portrait) {
+      const off = insideOffsets(this.fusionSize())[0] ?? { x: 0, y: -14 };
+      this.portrait.setPosition(x + off.x * sign, y + off.y + bob);
+      this.portrait.setFlipX(flip);
+      this.portrait.setDepth(depth + 0.24);
+    } else {
+      this.portrait?.setPosition(x, y + bob);
+      this.portrait?.setFlipX(flip);
+      this.portrait?.setDepth(depth);
+    }
+    const lift = this.isDruidHost() ? 52 : LABEL_LIFT;
+    this.slotLabel.setPosition(x, y - lift + bob);
     this.slotLabel.setDepth(depth + 0.5);
     if (this.scene.time.now >= this.tailwindUntil) return;
     if (this.scene.time.now - this.lastTailwindGhost < 55) return;
@@ -370,6 +413,23 @@ export class Axie {
       duration: 280,
       onComplete: () => blob.destroy(),
     });
+  }
+
+  private syncInsideHost(host: Axie): void {
+    const pile = host.pile();
+    const i = Math.max(0, pile.indexOf(this));
+    const off = insideOffsets(pile.length)[i] ?? { x: 0, y: 0 };
+    const moving = host.body.speed > 8;
+    const bob = moving ? Math.sin(this.scene.time.now / 85) * 2.2 : 0;
+    const flip = host.lastFacing.x > 0;
+    const sign = flip ? -1 : 1;
+    const x = host.sprite.x + off.x * sign;
+    const y = host.sprite.y + off.y + bob;
+    const depth = 1 + host.sprite.y * 0.01;
+    this.portrait?.setVisible(true);
+    this.portrait?.setPosition(x, y);
+    this.portrait?.setFlipX(flip);
+    this.portrait?.setDepth(depth + 0.24);
   }
 
   getWeightTier(): number {

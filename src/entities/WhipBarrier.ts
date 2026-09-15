@@ -11,6 +11,7 @@ export class WhipBarrier {
   private readonly art: Phaser.GameObjects.Image;
 
   private isOpen = false;
+  private latched = false;
   private lockUntil = 0;
   private readonly scene: Phaser.Scene;
 
@@ -36,7 +37,14 @@ export class WhipBarrier {
     this.body.enable = false;
   }
 
+  /** Room 5: first Bear/Plant press keeps the doorway down. */
+  latchOpen(): void {
+    this.latched = true;
+    this.open();
+  }
+
   close(): void {
+    if (this.latched) return;
     if (this.scene.time.now < this.lockUntil) return;
     if (!this.isOpen) return;
     this.isOpen = false;
@@ -59,6 +67,7 @@ export class WhipBarrier {
   }
 
   reset(): void {
+    this.latched = false;
     this.lockUntil = 0;
     this.isOpen = false;
     this.art.setTexture("prop-whip");

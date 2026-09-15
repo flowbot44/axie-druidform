@@ -78,7 +78,7 @@ export class AnchorCell {
       if (!this.isPressed) {
         this.isPressed = true;
         this.art.setTexture("prop-anchor-on");
-        this.whip.open();
+        this.whip.latchOpen();
       }
       return;
     }
@@ -101,7 +101,7 @@ export class AnchorCell {
     this.whip.close();
   }
 
-  trySlamLock(origin: { x: number; y: number }, holdMs = 2_000): boolean {
+  trySlamLock(origin: { x: number; y: number }): boolean {
     const dist = Phaser.Math.Distance.Between(
       origin.x,
       origin.y,
@@ -109,7 +109,7 @@ export class AnchorCell {
       this.sprite.y,
     );
     if (dist > SLAM_RADIUS + 8) return false;
-    this.whip.lockTimed(holdMs);
+    this.whip.latchOpen();
     this.art.setTexture("prop-anchor-on");
     return true;
   }

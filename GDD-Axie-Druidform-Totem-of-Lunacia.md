@@ -98,10 +98,10 @@ You choose three Axies you own. Unfused they keep class jobs. When you need a bo
 | `C` / Hawk | **Hawk** — fly + dart (vines pits) |
 | `Space` / click / Kit | Kit of the body you are driving |
 | `F` / Park | Follow ↔ Park the two inactives as a group |
-| `E` / Fuse | Fuse nearest ally (3 energy) / add the third (3) / split (0) |
+| `E` / Fuse | Fuse the unparked team in the room (3 energy each, cap ×3). At ×3, splits (0) |
 | HUD Retry | Energy 0: room retry (+10s, restore `energyOnRoomEnter`, split) |
 
-Form keys work even while you drive the leftover unfused Axie. HUD while fused: **`Z Bear    X Cat    C Hawk`**. Unfused HUD: `E fuse  ·  then Z Bear / X Cat / C Hawk`.
+Form keys work even while you drive the leftover unfused Axie. HUD while fused: **`E grabs the third`** at ×2, **`E splits`** at ×3, plus `Z/X/C`. Unfused HUD: `E fuses the team  ·  then Z Bear / X Cat / C Hawk`.
 
 `1`/`2`/`3` **never** change form. That duplication is cut.
 
@@ -217,11 +217,11 @@ Primary: energy remaining at shrine. Tie-break: time.
 
 ## 11. Fusion rules (LOCK)
 
-- Nearest ally within 40px. Any classes.  
-- ×2 costs 3. Adding the third costs 3 more and refreshes the clock.  
+- Unparked teammates in the same room. Any classes. One Fuse press absorbs all of them, up to ×3 (3 energy each). Fuse at ×3 splits. ×2 splits only if nobody is left to add (parked or other room).  
+- ×2 costs 3. Adding the third costs 3 more and refreshes the clock. The form is a **painted Bear/Cat/Hawk behind the pile**, with the fireteam as a tight chest knot — never hide the Axies.  
 - `Z`/`X`/`C` change form (even while driving the leftover Axie).  
 - Swapping off the form with `1`/`2`/`3` **parks** it.  
-- Split: guests pop 32px, cost 0. Timer and pits also split.
+- Split: guests pop 32px, cost 0. Timer, pits, and **walking into a new room** also split.
 
 | Object | Accepts |
 | --- | --- |
@@ -245,34 +245,36 @@ Nine cards from the JSON. Pick three. Copy: *Any 3 can finish. 1/2/3 pick Axies.
 
 ### Room 1 — Cat / Beast
 
-Wide bramble doorway. Unfused Beast slash **or** fuse Cat (`X`).
+Bramble **L** in the **north** gap. Center of the divider is wall — walk up, slash, around to the east door. Unfused Beast **or** Cat (`X`).
 
 ### Room 2 — Hawk / Bird (fly + dart)
 
-**Wide 3-tile chasm.** Unfused Bird hover+dart **or** fuse Hawk (`C`). Eye labeled BIRD; Hawk still counts. Hit lowers a **bridge** so leftovers can walk.
+**Wide 3-tile chasm.** East door is sealed. Eye sits in the **SE corner** behind a south LOS wall. Hover the pit, walk south, dart. The eye drops a **bridge** and opens the east door.
 
 ### Room 3 — Bear / Plant (park + swap)
 
-Wall + gate. Two legal paths:
+Wall + gate. **Plate is NW, lever is SE.**
 
-1. Park an unfused Plant (`F`), walk another through, pull the lever.  
+1. Park an unfused Plant (`F`) on the plate, walk another through, pull the lever down-right.  
 2. Fuse **two** as Bear (`Z`), stand on the plate, press the leftover’s `1`/`2`/`3` — Bear **auto-parks** — walk through, pull the lever.
 
 If all three are fused there is no leftover; then the 2s+ hold-timer race is the fallback.
 
 ### Room 4 — Hawk then Cat (not a second Room 2)
 
-**Narrow 2-tile pit** (not Room 2’s three). Hawk (`C`) flies it. On the landing, a **thorn gate** (brambles at the corridor) blocks the east door — switch to **Cat (`X`)** and slash. Optional HAWK crystal sits in a north-east alcove, off the critical path.
+**Short 2-tile fly-gap** on the door line only (walls block walking around). Hawk (`C`) flies it. On the landing, **thorns on the east door** — switch to **Cat (`X`)** and slash. Optional HAWK crystal sits in a **south-east** alcove, off the critical path.
 
 This room teaches **form switch after a crossing**. Room 2 does not.
 
 ### Room 5 — all three forms
 
-1. Hawk-dart the eye (`C`).  
-2. Bear on the anchor (`Z`).  
-3. Cat-slash the core (`X`).  
+Corners, not a hallway:
 
-Same pile can `C` → `Z` → `X`. Or park/swap leftovers. Or split and use unfused jobs if you brought those classes.
+1. Bear on the paw-anchor (`Z`) — **SW**. Roots drop **and stay down**.
+2. Walk in. Hawk-dart the eye (`C`) — **NE**.
+3. Cat-slash the ember core (`X`) — **SE**. Shrine lights; victory.
+
+Same pile can `Z` → `C` → `X`. Or split and use unfused jobs. Walking into Room 5 splits a carried form, so fuse again inside.
 
 ### Victory
 
@@ -391,10 +393,10 @@ Basic play stays wallet-free. Any L1 trio still finishes. Collectibles and evo a
 ## 18. First-play instructions (paste into the form)
 
 Pick any 3 from the collection. No wallet. **Any trio can finish the shrine.** Mixed Plant + Beast + Bird is easiest. Three of one class still clears. Gold line on a card is the part **verb**; cyan **Evo** pips mean that body, not a generic cactus.  
-`WASD` move. `1` `2` `3` pick an Axie (`Tab` cycles). `F` parks the others. `E` fuses a nearby ally.  
-**Forms (not 1/2/3):** `Z` Bear (plates), `X` Cat (slash), `C` Hawk (fly + dart). Switching off the form with `1`/`2`/`3` parks it. `E` again splits.  
-Room 3: fuse two as Bear, stand on the plate, select the leftover Axie, walk through.  
-Room 4: Hawk the pit, Cat the thorns.  
+`WASD` move. `1` `2` `3` pick an Axie (`Tab` cycles). `F` parks the others. `E` fuses the whole unparked team in the room (up to ×3).  
+**Forms (not 1/2/3):** `Z` Bear (plates), `X` Cat (slash), `C` Hawk (fly + dart). Switching off the form with `1`/`2`/`3` parks it. `E` at ×3 splits.  
+Room 3: plate is up-left. Fuse two as Bear, stand on it, leftover walks through, lever is down-right.
+Room 4: Hawk the pit, Cat the door thorns. Crystal is down-right.  
 `Space` uses that job. Energy remaining is the score. HUD retry if energy hits 0.
 
 ---
@@ -409,6 +411,10 @@ Default starters · wallet connect · live Market / API keys · totem stacking �
 
 | Date | Change |
 | --- | --- |
+| 2026-09-15 | Puzzle props moved to corners (R1 north L, R2 SE eye, R3 plate NW/lever SE, R4 SE crystal, R5 paw SW/eye NE/ember SE). |
+| 2026-09-15 | Room 5 roots latch open. Shrine still needs eye + paw + ember. Fuse splits when you walk into a new room. |
+| 2026-09-15 | Fuse grabs every unparked teammate in the room (one press → ×3). E at ×3 splits. No more 40px miss-split. |
+| 2026-09-15 | Room 2 east door sealed until the eye. Room 4 is a short fly-gap + thorn choke, not a second chasm. Shrine eye moved to the side lane. |
 | 2026-09-14 | Feel pass: Bear/Cat/Hawk silhouettes, walk bob, hit-stop, energy floaters, SFX. |
 | 2026-09-14 | Touch pad restyle: stone wells, gold rims, icons, larger hits. Portraits top-right on phones. Menu plates. |
 | 2026-09-14 | All-time honor-system board: name + energy + time. No wallet. |

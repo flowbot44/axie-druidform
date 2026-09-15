@@ -43,6 +43,9 @@ export class PreloadScene extends Phaser.Scene {
     for (const axie of OWNED_AXIES) {
       this.load.image(axieTextureKey(axie.id), axieImagePath(axie.id));
     }
+    this.load.image("form-beast-bear", "/forms/bear.png");
+    this.load.image("form-beast-cat", "/forms/cat.png");
+    this.load.image("form-beast-hawk", "/forms/hawk.png");
   }
 
   create(): void {

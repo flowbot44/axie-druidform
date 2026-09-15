@@ -159,33 +159,33 @@ const W = TILE_WALL;
 const F = TILE_FLOOR;
 const P = TILE_PIT;
 
-/** Room 1 — Wide bramble wedge. Col 10 rows 3–7 are the doorway. */
+/** Room 1 — Bramble L in the north gap. Center of col 10 is wall; go up, slash, around. */
 export const ROOM_1: number[][] = [
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
   [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, F, F, W, F, F, F, F, F, F, F, F, W],
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
 ];
 
-/** Room 2 — The Chasm. Pit at cols 8–10; LOS wall hides the T1 eye. */
+/** Room 2 — Chasm. Eye in the SE corner behind a south LOS wall. East door sealed. */
 export const ROOM_2: number[][] = [
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
+  [W, F, F, F, F, F, F, F, P, P, P, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, P, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, P, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, P, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, P, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, F, F, P, P, P, F, F, F, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, P, P, P, F, W, W, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, P, P, P, F, W, W, F, F, F, F, F, W],
   [W, F, F, F, F, F, F, F, P, P, P, F, W, W, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, P, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, P, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, P, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, P, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, P, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, P, F, F, F, F, F, F, F, F, W],
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
 ];
 
@@ -204,18 +204,18 @@ export const ROOM_5: number[][] = [
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
 ];
 
-/** Room 4 — Narrow pit, then a 5-tile Cat thorn wedge. */
+/** Room 4 — Short fly-gap, thorn door, optional crystal in the SE alcove. */
 export const ROOM_4: number[][] = [
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
-  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
-  [W, F, F, F, F, F, F, F, P, P, F, F, F, F, W, F, F, F, F, W],
+  [W, F, F, F, F, F, W, W, W, F, F, F, F, W, W, W, W, W, W, W],
+  [W, F, F, F, F, F, W, W, W, F, F, F, F, W, W, W, W, W, W, W],
+  [W, F, F, F, F, F, W, W, W, F, F, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, P, P, F, F, F, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, W, W, W, F, F, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, W, W, W, F, F, F, F, F, F, F, F, F, F, W],
+  [W, F, F, F, F, F, W, W, W, F, F, F, F, W, W, W, W, W, W, W],
   [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
 ];
 
@@ -268,7 +268,7 @@ export function stitchRooms(rooms: number[][][]): number[][] {
 
 export const DUNGEON_LAYOUT: number[][] = stitchRooms([
   withDoors(ROOM_1, false, true),
-  withDoors(ROOM_2, true, true),
+  withDoors(ROOM_2, true, false),
   withDoors(ROOM_3, true, true),
   withDoors(ROOM_4, true, true),
   withDoors(ROOM_5, true, false),
@@ -297,23 +297,23 @@ export function worldCenter(
 export const ROOM_COPY: readonly { objective: string; hint: string }[] = [
   { objective: "", hint: "" },
   {
-    objective: "Slash the wedge — Dual Blade Cleave, or two swings",
+    objective: "Go north — slash the bramble L",
     hint: "X Cat / Beast Space  ·  Dual Blade one Space",
   },
   {
-    objective: "Dart the eye — Pierce from the west, or hover across",
-    hint: "Pigeon Post Pierce skips the wall  ·  or C Hawk hover then dart",
+    objective: "Fly, then dart the SE eye — that opens the east door",
+    hint: "C Hawk hover the pit  ·  walk south  ·  dart the eye",
   },
   {
-    objective: "Bear on the plate — cactus Thorn Hold, or park a Plant",
-    hint: "Cactus slam plants 2s  ·  or park Plant  ·  or Bear then 1/2/3 leftover",
+    objective: "Plate is NW — lock the lever SE",
+    hint: "Park Plant on the plate  ·  or Bear then leftover through  ·  lever is down-right",
   },
   {
-    objective: "Hawk the pit, then Cat the thorn wedge",
-    hint: "C fly across  X Cleave the thorns  ·  Pierce the optional crystal",
+    objective: "Fly the gap, Cat the thorns, crystal is SE",
+    hint: "C across the ditch  ·  X the door thorns  ·  crystal down-right is optional",
   },
   {
-    objective: "Hawk-dart the eye, Bear the roots, Cat the core",
-    hint: "Pierce Treant or aim around  ·  Z ANCHOR  ·  X CORE  ·  all three",
+    objective: "Paw SW, eye NE, ember SE",
+    hint: "Z the paw (roots stay)  ·  walk in  ·  C the NE eye  ·  X the SE ember",
   },
 ];

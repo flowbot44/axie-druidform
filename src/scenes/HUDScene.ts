@@ -329,7 +329,11 @@ export class HUDScene extends Phaser.Scene {
       this.activeLabel.setColor(
         tag === "Bear" ? "#bcaaa4" : tag === "Cat" ? "#ff9800" : "#42a5f5",
       );
-      this.formHelp.setText("Z Bear    X Cat    C Hawk");
+      this.formHelp.setText(
+        fused === "×2"
+          ? "E grabs the third    Z Bear    X Cat    C Hawk"
+          : "E splits    Z Bear    X Cat    C Hawk",
+      );
       this.formHelp.setColor(
         tag === "Bear" ? "#bcaaa4" : tag === "Cat" ? "#ff9800" : "#42a5f5",
       );
@@ -346,7 +350,7 @@ export class HUDScene extends Phaser.Scene {
       this.activeLabel.setColor(
         `#${active.color.toString(16).padStart(6, "0")}`,
       );
-      this.formHelp.setText("E fuse  ·  then Z Bear / X Cat / C Hawk");
+      this.formHelp.setText("E fuses the team  ·  then Z Bear / X Cat / C Hawk");
       this.formHelp.setColor("#546e7a");
     } else {
       this.formHelp.setText("");

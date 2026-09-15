@@ -183,7 +183,9 @@ export class GameScene extends Phaser.Scene {
 
     const driven = this.partyManager.getActive();
     const energy = (this.registry.get("energy") as number) ?? STARTING_ENERGY;
-    this.dungeon.checkLeaderRoom(driven.sprite.x, energy);
+    if (this.dungeon.checkLeaderRoom(driven.sprite.x, energy)) {
+      this.partyManager.splitIfFused();
+    }
     this.dungeon.updatePuzzles(this.partyManager.getAxies());
     const addTime = (ms: number) => {
       this.elapsedMs += ms;

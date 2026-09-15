@@ -8,6 +8,7 @@ import {
   ROOM_PX_W,
   STARTING_ENERGY,
   TILE_FILL,
+  TILE_FLOOR,
   TILE_PIT,
   TILE_SIZE,
   TILE_WALL,
@@ -85,23 +86,29 @@ export class Dungeon {
 
     scene.physics.world.setBounds(0, 0, ROOM_PX_W * ROOM_COUNT, ROOM_PX_H);
 
-    this.brambles = [3, 4, 5, 6, 7].map((row) => {
-      const p = worldCenter(1, 10, row);
+    this.brambles = (
+      [
+        [10, 3],
+        [10, 4],
+        [11, 3],
+      ] as const
+    ).map(([col, row]) => {
+      const p = worldCenter(1, col, row);
       return new Bramble(scene, p.x, p.y);
     });
-    this.exitBrambles = [3, 4, 5, 6, 7].map((row) => {
+    this.exitBrambles = [4, 5, 6].map((row) => {
       const p = worldCenter(4, 14, row);
       return new Bramble(scene, p.x, p.y);
     });
 
-    const eyePos = worldCenter(2, 16, 2);
+    const eyePos = worldCenter(2, 16, 8);
     this.eye = new EyeBeacon(scene, eyePos.x, eyePos.y, () => this.lowerBridge());
 
     const gatePos = worldCenter(3, 10, 5);
-    const platePos = worldCenter(3, 5, 5);
+    const platePos = worldCenter(3, 4, 2);
     this.gate = new Gate(scene, gatePos.x, gatePos.y);
     this.plate = new HeavyPlate(scene, platePos.x, platePos.y, this.gate);
-    const leverPos = worldCenter(3, 15, 5);
+    const leverPos = worldCenter(3, 16, 8);
     this.lever = new Lever(scene, leverPos.x, leverPos.y, () => {
       this.gate.lockOpen();
       this.scene.registry.set(
@@ -110,19 +117,19 @@ export class Dungeon {
       );
     });
 
-    const crystalPos = worldCenter(4, 17, 2);
+    const crystalPos = worldCenter(4, 17, 8);
     this.crystal = new Crystal(scene, crystalPos.x, crystalPos.y);
 
-    const treant = worldCenter(5, 12, 5);
+    const treant = worldCenter(5, 12, 6);
     this.treant = treant;
     scene.add.image(treant.x, treant.y - 8, "prop-treant").setDepth(0.34);
 
     const whipPos = worldCenter(5, 10, 5);
     this.whip = new WhipBarrier(scene, whipPos.x, whipPos.y);
-    const anchorPos = worldCenter(5, 6, 5);
+    const anchorPos = worldCenter(5, 4, 8);
     this.anchor = new AnchorCell(scene, anchorPos.x, anchorPos.y, this.whip);
 
-    const bossEyePos = worldCenter(5, 16, 5);
+    const bossEyePos = worldCenter(5, 17, 2);
     this.bossEye = new EyeBeacon(
       scene,
       bossEyePos.x,
@@ -131,10 +138,10 @@ export class Dungeon {
       "hawk",
     );
 
-    const corePos = worldCenter(5, 15, 7);
+    const corePos = worldCenter(5, 17, 8);
     this.core = new BossCore(scene, corePos.x, corePos.y, () => this.onCoreBroken());
 
-    const shrine = worldCenter(5, 13, 8);
+    const shrine = worldCenter(5, 14, 8);
     this.shrineSprite = scene.add.image(shrine.x, shrine.y, "prop-shrine");
     this.shrineSprite.setDepth(0.4);
   }
@@ -187,11 +194,12 @@ export class Dungeon {
     if (!snapCamera) sfx.door();
   }
 
-  checkLeaderRoom(worldX: number, energy: number): void {
-    if (this.panning) return;
+  checkLeaderRoom(worldX: number, energy: number): boolean {
+    if (this.panning) return false;
     const next = roomIndexAt(worldX);
-    if (next === this.currentIndex) return;
+    if (next === this.currentIndex) return false;
     this.enterRoom(next, energy, false);
+    return true;
   }
 
   isPit(x: number, y: number): boolean {
@@ -226,7 +234,7 @@ export class Dungeon {
       brambles: [...this.brambles, ...this.exitBrambles],
       eyes: [this.eye, this.bossEye],
       crystal: this.crystal,
-      cores: this.whip.isBlocking() ? [] : [this.core],
+      cores: [this.core],
       anchor: this.anchor,
       plates: [this.plate],
       dartBlockers: [
@@ -316,7 +324,7 @@ export class Dungeon {
     this.scene.registry.set("objective", "Roots down — Cat slash the CORE");
     this.scene.registry.set(
       "hint",
-      "X Cat  slash CORE  ·  park Bear on ANCHOR or race the hold",
+      "X Cat  slash CORE  ·  roots stay down",
     );
   }
 
@@ -336,16 +344,22 @@ export class Dungeon {
   }
 
   private lowerBridge(): void {
-    for (const col of [28, 29, 30]) {
-      this.layer.putTileAt(TILE_FILL, col, 5);
+    for (const r of [4, 5, 6]) {
+      for (const col of [28, 29, 30]) {
+        this.layer.putTileAt(TILE_FILL, col, r);
+      }
+      this.layer.putTileAt(TILE_FLOOR, 39, r);
     }
     this.look.paint();
-    this.scene.registry.set("objective", "Bridge down — others may cross");
+    this.scene.registry.set("objective", "Bridge down — east door open");
   }
 
   private raiseBridge(): void {
-    for (const col of [28, 29, 30]) {
-      this.layer.putTileAt(TILE_PIT, col, 5);
+    for (const r of [4, 5, 6]) {
+      for (const col of [28, 29, 30]) {
+        this.layer.putTileAt(TILE_PIT, col, r);
+      }
+      this.layer.putTileAt(TILE_WALL, 39, r);
     }
     this.look.paint();
   }

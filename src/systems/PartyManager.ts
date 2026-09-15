@@ -6,7 +6,6 @@ import {
   FOLLOW_DISTANCE,
   FOLLOW_STOP_THRESHOLD,
   BREADCRUMB_INTERVAL,
-  FUSE_RANGE,
   FUSE_COST,
   FORM_SWITCH_COST,
   SPLIT_POP,
@@ -282,24 +281,35 @@ export class PartyManager {
 
   tryFuseOrSplit(): void {
     const active = this.getActive();
-    if (active.isDruidHost()) {
-      const extra =
-        active.fusionSize() < 3
-          ? this.nearestVisibleAlly(active, FUSE_RANGE)
-          : null;
-      if (extra) {
-        if (!this.spendFuseCost()) return;
-        this.addGuest(active, extra);
-        return;
-      }
-      this.split(active);
+    const existing = this.axies.find((a) => a.isDruidHost()) ?? null;
+
+    if (existing && existing.fusionSize() >= 3) {
+      this.split(existing);
       return;
     }
 
-    const nearest = this.nearestVisibleAlly(active, FUSE_RANGE);
-    if (!nearest) return;
-    if (!this.spendFuseCost()) return;
-    this.fuse(active, nearest);
+    const host = existing ?? active;
+    const extras = this.fuseCandidates(host);
+    if (extras.length === 0) {
+      if (existing) this.split(existing);
+      return;
+    }
+
+    let pile = existing;
+    for (const extra of extras) {
+      if ((pile?.fusionSize() ?? 1) >= 3) break;
+      if (!this.spendFuseCost()) return;
+      if (!pile) {
+        this.fuse(host, extra);
+        pile = host;
+      } else {
+        this.addGuest(pile, extra);
+        if (extra === active) {
+          this.activeSlot = pile.slot;
+          this.updateActiveVisuals();
+        }
+      }
+    }
   }
 
   update(): void {
@@ -539,23 +549,25 @@ export class PartyManager {
     }
   }
 
-  private nearestVisibleAlly(from: Axie, range: number): Axie | null {
-    let best: Axie | null = null;
-    let bestDist = range;
+  private fuseCandidates(host: Axie): Axie[] {
+    const room = roomIndexAt(host.sprite.x);
+    const found: { axie: Axie; dist: number }[] = [];
     for (const other of this.axies) {
-      if (other === from || other.isAbsorbed()) continue;
-      const dist = Phaser.Math.Distance.Between(
-        from.sprite.x,
-        from.sprite.y,
-        other.sprite.x,
-        other.sprite.y,
-      );
-      if (dist <= bestDist) {
-        bestDist = dist;
-        best = other;
-      }
+      if (other === host || other.isAbsorbed() || other.isDruidHost()) continue;
+      if (other.followPark === "park") continue;
+      if (roomIndexAt(other.sprite.x) !== room) continue;
+      found.push({
+        axie: other,
+        dist: Phaser.Math.Distance.Between(
+          host.sprite.x,
+          host.sprite.y,
+          other.sprite.x,
+          other.sprite.y,
+        ),
+      });
     }
-    return best;
+    found.sort((a, b) => a.dist - b.dist);
+    return found.map((row) => row.axie);
   }
 
   private facingOf(axie: Axie): { x: number; y: number } {
