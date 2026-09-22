@@ -12,6 +12,7 @@ import {
   pileHasHerbivore,
   verbLabel,
 } from "../config/parts.ts";
+import { calculateRating } from "../config/TeamRating.ts";
 
 /**
  * R1 victory — energy primary, time tie-break, +250 AXP (Simulated) (GDD §12).
@@ -76,9 +77,65 @@ export class VictoryScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    // --- Team Rating ---
+    const rating = calculateRating(this);
+    const gradeColors: Record<string, string> = {
+      S: "#ffd54f",
+      A: "#69f0ae",
+      B: "#42a5f5",
+      C: "#b0bec5",
+      D: "#ef5350",
+    };
+    const gradeColor = gradeColors[rating.letter] ?? "#b0bec5";
+
+    const gradeLabel = this.add
+      .text(w / 2, 240, rating.letter, {
+        fontSize: "52px",
+        color: gradeColor,
+        fontFamily: "monospace",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setScale(3)
+      .setAlpha(0);
+
+    // Stamp animation
+    this.tweens.add({
+      targets: gradeLabel,
+      scale: 1,
+      alpha: 1,
+      duration: 300,
+      ease: "Back.easeOut",
+      delay: 400,
+    });
+
     this.add
-      .text(w / 2, 228, this.fireteamLine(), {
+      .text(w / 2, 274, `Score ${rating.score}`, {
         fontSize: "14px",
+        color: "#90a4ae",
+        fontFamily: "monospace",
+      })
+      .setOrigin(0.5);
+
+    // Factor breakdown
+    const factorLines = rating.factors.map((f) => {
+      const mark = f.earned ? "✓" : "✗";
+      const pts = f.earned ? `+${f.points}` : `  0`;
+      return `${mark} ${pts}  ${f.label}`;
+    });
+    this.add
+      .text(w / 2, 310, factorLines.join("\n"), {
+        fontSize: "11px",
+        color: "#b0bec5",
+        fontFamily: "monospace",
+        lineSpacing: 3,
+      })
+      .setOrigin(0.5, 0);
+
+    // --- Fireteam + Credits (shifted down) ---
+    this.add
+      .text(w / 2, 410, this.fireteamLine(), {
+        fontSize: "13px",
         color: "#ffd54f",
         fontFamily: "monospace",
         align: "center",
@@ -86,8 +143,8 @@ export class VictoryScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(w / 2, 268, this.creditLine(), {
-        fontSize: "14px",
+      .text(w / 2, 434, this.creditLine(), {
+        fontSize: "13px",
         color: "#80deea",
         fontFamily: "monospace",
         align: "center",
@@ -95,8 +152,8 @@ export class VictoryScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(w / 2, 300, this.spendLine(), {
-        fontSize: "13px",
+      .text(w / 2, 458, this.spendLine(), {
+        fontSize: "12px",
         color: "#b0bec5",
         fontFamily: "monospace",
       })
@@ -105,10 +162,10 @@ export class VictoryScene extends Phaser.Scene {
     this.add
       .text(
         w / 2,
-        348,
+        486,
         "AXP accumulation → Ascension is the official\nAxie Core loop this dungeon feeds.",
         {
-          fontSize: "14px",
+          fontSize: "13px",
           color: "#b0bec5",
           fontFamily: "monospace",
           align: "center",
@@ -117,16 +174,16 @@ export class VictoryScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     const scoreText = this.add
-      .text(w / 2, 400, score, {
-        fontSize: "12px",
+      .text(w / 2, 528, score, {
+        fontSize: "11px",
         color: "#90a4ae",
         fontFamily: "monospace",
       })
       .setOrigin(0.5);
 
     const copy = this.add
-      .text(w / 2, 422, "[ click score to copy ]", {
-        fontSize: "12px",
+      .text(w / 2, 546, "[ click score to copy ]", {
+        fontSize: "11px",
         color: "#546e7a",
         fontFamily: "monospace",
       })
@@ -140,8 +197,8 @@ export class VictoryScene extends Phaser.Scene {
     });
 
     this.nameLabel = this.add
-      .text(w / 2, 458, "", {
-        fontSize: "16px",
+      .text(w / 2, 572, "", {
+        fontSize: "14px",
         color: "#e0b84a",
         fontFamily: "monospace",
         fontStyle: "bold",
@@ -164,31 +221,31 @@ export class VictoryScene extends Phaser.Scene {
     this.submitLabel = plateButton(
       this,
       w / 2,
-      492,
+      604,
       "Submit to board",
       () => {
         void this.submit(energy, ms);
       },
-      { width: 300, height: 48, stroke: 0xe0b84a, color: "#ffd54f" },
+      { width: 300, height: 44, stroke: 0xe0b84a, color: "#ffd54f" },
     ).text;
 
     plateButton(
       this,
       w / 2,
-      548,
+      654,
       "View board",
       () => {
         this.editingName = false;
         this.scene.pause("VictoryScene");
         this.scene.launch("LeaderboardScene", { from: "VictoryScene" });
       },
-      { width: 260, height: 44, stroke: 0x80deea, color: "#80deea", fontSize: "16px" },
+      { width: 260, height: 40, stroke: 0x80deea, color: "#80deea", fontSize: "15px" },
     );
 
     plateButton(
       this,
       w / 2,
-      600,
+      700,
       "Play again",
       () => {
         this.scene.stop("VictoryScene");

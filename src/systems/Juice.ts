@@ -109,6 +109,13 @@ export const sfx = {
     noise(0.1, 0.12, 160);
     tone(80, 0.14, "sine", 0.08, 40);
   },
+  chip(): void {
+    tone(520, 0.05, "triangle", 0.045);
+  },
+  clear(): void {
+    tone(660, 0.08, "sine", 0.05);
+    tone(990, 0.12, "sine", 0.04);
+  },
 };
 
 export function hitStop(scene: Phaser.Scene, ms = 45): void {
@@ -168,4 +175,57 @@ export function spendAt(
   if (amount <= 0) return;
   sfx.spend();
   floater(scene, x, y, `−${amount}`);
+}
+
+export function hitParticles(scene: Phaser.Scene, x: number, y: number, color = 0xffffff): void {
+  const particles = scene.add.particles(0, 0, 'tiles', {
+    x,
+    y,
+    lifespan: 300,
+    speed: { min: 50, max: 150 },
+    angle: { min: 0, max: 360 },
+    scale: { start: 0.1, end: 0 },
+    blendMode: 'ADD',
+    tint: color,
+    emitting: false
+  });
+  particles.explode(6);
+  scene.time.delayedCall(400, () => particles.destroy());
+}
+
+export function dashTrail(scene: Phaser.Scene, x: number, y: number, color = 0xffffff, size = 16): void {
+  const trail = scene.add.circle(x, y, size, color, 0.4).setDepth(8);
+  scene.tweens.add({
+    targets: trail,
+    scale: 0.1,
+    alpha: 0,
+    duration: 300,
+    onComplete: () => trail.destroy()
+  });
+}
+
+export function fuseParticles(scene: Phaser.Scene, x: number, y: number, color = 0xffffff): void {
+  const ring = scene.add.circle(x, y, 10, color, 0.8).setDepth(20);
+  scene.tweens.add({
+    targets: ring,
+    scale: 4,
+    alpha: 0,
+    duration: 400,
+    ease: "Cubic.out",
+    onComplete: () => ring.destroy()
+  });
+
+  const particles = scene.add.particles(0, 0, 'tiles', {
+    x,
+    y,
+    lifespan: 500,
+    speed: { min: 100, max: 200 },
+    angle: { min: 0, max: 360 },
+    scale: { start: 0.15, end: 0 },
+    blendMode: 'ADD',
+    tint: color,
+    emitting: false
+  });
+  particles.explode(12);
+  scene.time.delayedCall(600, () => particles.destroy());
 }

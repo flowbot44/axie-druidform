@@ -222,7 +222,7 @@ export class HUDScene extends Phaser.Scene {
     this.tweens.add({
       targets: this.toastLabel,
       alpha: 0,
-      delay: 1600,
+      delay: 3200,
       duration: 400,
     });
   }
@@ -331,8 +331,8 @@ export class HUDScene extends Phaser.Scene {
       );
       this.formHelp.setText(
         fused === "×2"
-          ? "E grabs the third    Z Bear    X Cat    C Hawk"
-          : "E splits    Z Bear    X Cat    C Hawk",
+          ? "E adds the third → Hawk"
+          : "E splits",
       );
       this.formHelp.setColor(
         tag === "Bear" ? "#bcaaa4" : tag === "Cat" ? "#ff9800" : "#42a5f5",
@@ -350,7 +350,11 @@ export class HUDScene extends Phaser.Scene {
       this.activeLabel.setColor(
         `#${active.color.toString(16).padStart(6, "0")}`,
       );
-      this.formHelp.setText("E fuses the team  ·  then Z Bear / X Cat / C Hawk");
+      this.formHelp.setText(
+        roomIndex === 1
+          ? "Slash one-shots bushes  ·  slam/dart take 3  ·  1/2/3 switch"
+          : "E fuse two → Bear  ·  three → Hawk",
+      );
       this.formHelp.setColor("#546e7a");
     } else {
       this.formHelp.setText("");
@@ -390,6 +394,7 @@ export class HUDScene extends Phaser.Scene {
     );
 
     this.hintText.setText((this.registry.get("hint") as string) ?? "");
+    this.hintText.setColor(roomIndex === 1 ? "#ffe082" : "#888899");
 
     // Highlight active portrait
     for (let i = 0; i < this.portraits.length; i++) {

@@ -25,6 +25,9 @@ import { Lever } from "../entities/Lever.ts";
 import { WhipBarrier } from "../entities/WhipBarrier.ts";
 import { AnchorCell } from "../entities/AnchorCell.ts";
 import { BossCore } from "../entities/BossCore.ts";
+import { CrackedWall } from "../entities/CrackedWall.ts";
+import { EnergyPickup } from "../entities/EnergyPickup.ts";
+import { Enemy } from "../entities/Enemy.ts";
 import type { AbilityTargets } from "./AbilitySystem.ts";
 import type { PartyManager } from "./PartyManager.ts";
 import { restoreLedger, snapshotLedger } from "../config/energy.ts";
@@ -50,7 +53,11 @@ export class Dungeon {
   readonly whip: WhipBarrier;
   readonly anchor: AnchorCell;
   readonly bossEye: EyeBeacon;
+  readonly bonusEye: EyeBeacon;
+  bonusPickup: EnergyPickup | null = null;
   readonly core: BossCore;
+  readonly crackedWall: CrackedWall;
+  readonly enemies: Enemy[] = [];
   private victoryQueued = false;
   private shrineSprite!: Phaser.GameObjects.Image;
   private readonly vineTiles: { tx: number; ty: number }[] = [];
@@ -104,6 +111,13 @@ export class Dungeon {
     const eyePos = worldCenter(2, 16, 8);
     this.eye = new EyeBeacon(scene, eyePos.x, eyePos.y, () => this.lowerBridge());
 
+    // Hidden Eye — Room 2, behind south LOS wall (Pierce bonus)
+    const bonusEyePos = worldCenter(2, 14, 9);
+    this.bonusEye = new EyeBeacon(scene, bonusEyePos.x, bonusEyePos.y, () => {
+      this.bonusPickup = new EnergyPickup(scene, bonusEyePos.x, bonusEyePos.y);
+      scene.registry.set("verbRoute_pierceBonus", true);
+    });
+
     const gatePos = worldCenter(3, 10, 5);
     const platePos = worldCenter(3, 4, 2);
     this.gate = new Gate(scene, gatePos.x, gatePos.y);
@@ -140,6 +154,23 @@ export class Dungeon {
 
     const corePos = worldCenter(5, 17, 8);
     this.core = new BossCore(scene, corePos.x, corePos.y, () => this.onCoreBroken());
+
+    // Cracked Wall — Room 3, wall divider south of gate gap (verb-gated shortcut)
+    const crackPos = worldCenter(3, 10, 7);
+    this.crackedWall = new CrackedWall(scene, crackPos.x, crackPos.y, () => {
+      // Replace wall tiles with floor to open the shortcut
+      this.layer.putTileAt(TILE_FLOOR, 49, 7);  // Room 3 col 10 = global col 49, row 7
+      this.layer.putTileAt(TILE_FLOOR, 49, 8);  // and row 8
+      this.refreshLook();
+      scene.registry.set("verbRoute_thornShortcut", true);
+    });
+
+    // Enemies (1 per level)
+    this.enemies.push(new Enemy(scene, worldCenter(1, 8, 6).x, worldCenter(1, 8, 6).y));
+    this.enemies.push(new Enemy(scene, worldCenter(2, 12, 5).x, worldCenter(2, 12, 5).y));
+    this.enemies.push(new Enemy(scene, worldCenter(3, 14, 4).x, worldCenter(3, 14, 4).y));
+    this.enemies.push(new Enemy(scene, worldCenter(4, 10, 7).x, worldCenter(4, 10, 7).y));
+    this.enemies.push(new Enemy(scene, worldCenter(5, 8, 6).x, worldCenter(5, 8, 6).y));
 
     const shrine = worldCenter(5, 14, 8);
     this.shrineSprite = scene.add.image(shrine.x, shrine.y, "prop-shrine");
@@ -232,11 +263,13 @@ export class Dungeon {
   abilityTargets(): AbilityTargets {
     return {
       brambles: [...this.brambles, ...this.exitBrambles],
-      eyes: [this.eye, this.bossEye],
+      eyes: [this.eye, this.bossEye, this.bonusEye],
       crystal: this.crystal,
       cores: [this.core],
       anchor: this.anchor,
       plates: [this.plate],
+      crackedWalls: [this.crackedWall],
+      enemies: this.enemies,
       dartBlockers: [
         { x: this.treant.x, y: this.treant.y, radius: TREANT_BOSS_RADIUS },
       ],
@@ -259,8 +292,24 @@ export class Dungeon {
     this.plate.update(axies);
     this.lever.update(axies);
     this.anchor.update(axies);
+    this.telegraph(axies);
     this.refreshBossCopy();
     if (this.retryCooldown > 0) this.retryCooldown -= 1;
+    
+    // Check bonus pickup
+    if (this.bonusPickup?.isActive()) {
+      for (const axie of axies) {
+        if (!axie.body.enable) continue;
+        const dist = Math.hypot(
+          axie.sprite.x - this.bonusPickup.sprite.x,
+          axie.sprite.y - this.bonusPickup.sprite.y
+        );
+        if (dist < 26) {
+          this.bonusPickup.collect();
+          break;
+        }
+      }
+    }
   }
 
   takeVictory(): boolean {
@@ -274,25 +323,38 @@ export class Dungeon {
     addTimeMs: (ms: number) => void,
   ): void {
     if (this.retryCooldown > 0) return;
-    this.retryCooldown = 40;
+    this.retryCooldown = 60;
+    
     this.scene.registry.set("energy", this.energyOnRoomEnter);
     restoreLedger(this.scene);
     addTimeMs(RETRY_PENALTY_MS);
+    sfx.fail();
 
     const spawn = worldCenter(this.currentIndex, 3, 5);
     party.resetLocalParty(this.currentIndex, spawn.x, spawn.y);
+    this.enemies[this.currentIndex - 1]?.reset();
 
     if (this.currentIndex === 1) {
-      for (const bramble of this.brambles) bramble.reset();
+      for (const b of this.brambles) b.reset();
     }
     if (this.currentIndex === 2) {
       this.eye.reset();
       this.raiseBridge();
+      this.bonusEye.reset();
+      if (this.bonusPickup) {
+        this.bonusPickup.destroy();
+        this.bonusPickup = null;
+      }
     }
     if (this.currentIndex === 3) {
       this.lever.reset();
       this.gate.unlock();
       this.plate.clearThorn();
+      this.crackedWall.reset();
+      // Restore wall tiles if cracked wall was broken
+      this.layer.putTileAt(TILE_WALL, 49, 7);
+      this.layer.putTileAt(TILE_WALL, 49, 8);
+      this.refreshLook();
     }
     if (this.currentIndex === 4) {
       this.crystal.reset();
@@ -310,6 +372,22 @@ export class Dungeon {
     this.applyRoomCopy(this.currentIndex);
   }
 
+  private telegraph(axies: import("../entities/Axie.ts").Axie[]): void {
+    const slot = (this.scene.registry.get("activeSlot") as number) ?? 1;
+    const picked = axies.find((a) => a.slot === slot);
+    const body = picked?.absorbedBy ?? picked;
+    const kit = body?.currentKit() ?? null;
+    const slashHot = kit === "slash";
+    const dartHot = kit === "dart" || kit === "seed";
+    for (const b of [...this.brambles, ...this.exitBrambles]) {
+      b.setHint(slashHot);
+    }
+    this.eye.setHint(dartHot);
+    this.bossEye.setHint(dartHot);
+    this.crystal.setHint(dartHot);
+    this.core.setHint(slashHot);
+  }
+
   private refreshBossCopy(): void {
     if (this.currentIndex !== 5) return;
     if (this.core.isSlashed()) return;
@@ -321,10 +399,10 @@ export class Dungeon {
       );
       return;
     }
-    this.scene.registry.set("objective", "Roots down — Cat slash the CORE");
+    this.scene.registry.set("objective", "Roots down — slash the CORE");
     this.scene.registry.set(
       "hint",
-      "X Cat  slash CORE  ·  roots stay down",
+      "Slash the CORE  ·  slam/dart take 3  ·  roots stay down",
     );
   }
 

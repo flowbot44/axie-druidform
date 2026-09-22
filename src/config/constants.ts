@@ -49,6 +49,17 @@ export const DART_STEP = 8;
 export const EYE_HIT_RADIUS = 18;
 export const PIT_FALL_COST = 3;
 
+/** Lone Wolf — unfused slash-lineage buff while allies are fused (Path C §1) */
+export const LONE_WOLF_SLASH_COST = 0;
+export const LONE_WOLF_RANGE_MUL = 1.5;
+
+/** Bear Ground Pound — exclusive AoE stun (Path C §5) */
+export const GROUND_POUND_RADIUS_MUL = 1.5;
+export const GROUND_POUND_STUN_MS = 3_000;
+
+/** Energy Pickup — bonus energy drops (Path C §6) */
+export const ENERGY_PICKUP_AMOUNT = 5;
+
 /** Tile visual colors */
 export const FLOOR_COLOR = 0x3a3a52;
 export const WALL_COLOR = 0x1a1a2e;
@@ -298,22 +309,22 @@ export const ROOM_COPY: readonly { objective: string; hint: string }[] = [
   { objective: "", hint: "" },
   {
     objective: "Go north — slash the bramble L",
-    hint: "X Cat / Beast Space  ·  Dual Blade one Space",
+    hint: "Any kit chips  ·  slash is one hit  ·  Dual Blade clears the L",
   },
   {
     objective: "Fly, then dart the SE eye — that opens the east door",
-    hint: "C Hawk hover the pit  ·  walk south  ·  dart the eye",
+    hint: "Dart one-shots the eye  ·  slash/slam take 3  ·  or slam-fill a path and walk",
   },
   {
     objective: "Plate is NW — lock the lever SE",
-    hint: "Park Plant on the plate  ·  or Bear then leftover through  ·  lever is down-right",
+    hint: "Park anyone on the plate  ·  Plant regen / Bear hold after you step off",
   },
   {
     objective: "Fly the gap, Cat the thorns, crystal is SE",
-    hint: "C across the ditch  ·  X the door thorns  ·  crystal down-right is optional",
+    hint: "Fly is fastest  ·  slam-fill the ditch if you cannot fly  ·  slash one-shots thorns",
   },
   {
     objective: "Paw SW, eye NE, ember SE",
-    hint: "Z the paw (roots stay)  ·  walk in  ·  C the NE eye  ·  X the SE ember",
+    hint: "×2 Bear on the paw  ·  add third for Hawk eye  ·  split, slash the ember",
   },
 ];

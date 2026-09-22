@@ -1,10 +1,11 @@
 import Phaser from "phaser";
 import { CRYSTAL_INTERACT_RANGE, TILE_SIZE } from "../config/constants.ts";
+import { PUZZLE_HP } from "../config/combat.ts";
 import { ghostBody, idlePulse } from "../art/paint.ts";
 import type { Axie } from "./Axie.ts";
 
 /**
- * Pillar crystal — Room 4. Resolves only on a Dawn Seed Dart (GDD §11).
+ * Room 4 optional. Dart one-shots; other kits chip.
  */
 export class Crystal {
   public readonly sprite: Phaser.GameObjects.Rectangle;
@@ -13,6 +14,7 @@ export class Crystal {
   private readonly scene: Phaser.Scene;
   private readonly art: Phaser.GameObjects.Image;
   private solved = false;
+  private hp = PUZZLE_HP;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
     this.scene = scene;
@@ -40,26 +42,29 @@ export class Crystal {
       this.sprite.y,
     );
     if (dist > CRYSTAL_INTERACT_RANGE) return false;
-    if (!axie.isHawk()) {
-      this.flashWrong();
-      return false;
+    return this.receiveHit(axie.isHawk() ? PUZZLE_HP : 1);
+  }
+
+  receiveHit(amount: number): boolean {
+    if (this.solved) return false;
+    this.hp -= amount;
+    if (this.hp <= 0) {
+      this.solve();
+      return true;
     }
-    this.solve();
+    this.flashChip();
     return true;
   }
 
-  receiveHit(attacker: Axie): boolean {
-    if (this.solved) return false;
-    if (!attacker.isHawk()) {
-      this.flashWrong();
-      return false;
-    }
-    this.solve();
-    return true;
+  setHint(hot: boolean): void {
+    if (this.solved) return;
+    if (hot) this.art.setTint(0x81d4fa);
+    else this.art.clearTint();
   }
 
   reset(): void {
     this.solved = false;
+    this.hp = PUZZLE_HP;
     this.scene.tweens.killTweensOf(this.art);
     this.art.setAlpha(1);
     this.art.clearTint();
@@ -77,19 +82,18 @@ export class Crystal {
     this.scene.registry.set("crystalSolved", true);
   }
 
-  private flashWrong(): void {
+  private flashChip(): void {
     this.scene.tweens.killTweensOf(this.art);
-    this.art.setTexture("prop-crystal-bad");
+    this.art.setTint(0xfffde7);
     this.scene.tweens.add({
       targets: this.art,
-      alpha: { from: 1, to: 0.4 },
-      duration: 80,
+      alpha: { from: 1, to: 0.55 },
+      duration: 70,
       yoyo: true,
-      repeat: 2,
       onComplete: () => {
         if (this.solved) return;
         this.art.setAlpha(1);
-        this.art.setTexture("prop-crystal-idle");
+        this.art.clearTint();
         idlePulse(this.scene, this.art);
       },
     });

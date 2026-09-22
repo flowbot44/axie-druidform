@@ -8,6 +8,10 @@ const BEAR: readonly AxieClass[] = ["Plant", "Reptile", "Dusk"];
 const CAT: readonly AxieClass[] = ["Beast", "Bug", "Mech"];
 const HAWK: readonly AxieClass[] = ["Bird", "Aqua", "Dawn"];
 
+export function formForSize(count: number): DruidForm {
+  return count >= 3 ? "hawk" : "bear";
+}
+
 export function defaultFormFor(cls: AxieClass): DruidForm {
   if (BEAR.includes(cls)) return "bear";
   if (CAT.includes(cls)) return "cat";

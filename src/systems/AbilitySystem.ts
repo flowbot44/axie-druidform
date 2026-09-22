@@ -6,11 +6,16 @@ import type { Crystal } from "../entities/Crystal.ts";
 import type { BossCore } from "../entities/BossCore.ts";
 import type { AnchorCell } from "../entities/AnchorCell.ts";
 import type { HeavyPlate } from "../entities/HeavyPlate.ts";
+import type { CrackedWall } from "../entities/CrackedWall.ts";
 import {
   DART_COST,
   DART_RANGE,
   DART_STEP,
   EYE_HIT_RADIUS,
+  GROUND_POUND_RADIUS_MUL,
+  GROUND_POUND_STUN_MS,
+  LONE_WOLF_RANGE_MUL,
+  LONE_WOLF_SLASH_COST,
   SLAM_COST,
   SLAM_RADIUS,
   SLASH_ARC_DEG,
@@ -22,6 +27,8 @@ import { bumpLedger } from "../config/energy.ts";
 import {
   catSlashCost,
   hawkDartCost,
+  isCatClass,
+  isHeavyClass,
   pileAffinity,
 } from "../config/forms.ts";
 import {
@@ -38,7 +45,9 @@ import {
   toastOnce,
   verbToast,
 } from "../config/parts.ts";
-import { hitStop, kick, sfx, spendAt } from "./Juice.ts";
+import { hitStop, kick, sfx, spendAt, floater, hitParticles } from "./Juice.ts";
+import { puzzleDamage, type KitKind } from "../config/combat.ts";
+import type { Enemy } from "../entities/Enemy.ts";
 
 export interface AbilityTargets {
   brambles?: Bramble[];
@@ -47,6 +56,8 @@ export interface AbilityTargets {
   cores?: BossCore[];
   anchor?: AnchorCell;
   plates?: HeavyPlate[];
+  crackedWalls?: CrackedWall[];
+  enemies?: Enemy[];
   dartBlockers?: { x: number; y: number; radius: number }[];
   isWall?: (x: number, y: number) => boolean;
   isPit?: (x: number, y: number) => boolean;
@@ -92,17 +103,13 @@ export class AbilitySystem {
     const dir = this.normalize(facing);
     const pile = attacker.pile();
     const partMul = Math.max(...pile.map((a) => partRangeMul(a)));
-    const rangeMul = attacker.rangeMul() * partMul;
+    const loneWolfMul = (this.scene.registry.get("loneWolfActive") as boolean) ? LONE_WOLF_RANGE_MUL : 1;
+    const rangeMul = attacker.rangeMul() * partMul * loneWolfMul;
 
     if (kit.kind === "slash") {
       const cleave = catVerb(pile) === "cleave";
       if (cleave) toastOnce(this.scene, "cleave", verbToast("cleave"));
-      this.slash(
-        origin,
-        dir,
-        targets.brambles ?? [],
-        targets.cores ?? [],
-        rangeMul * (cleave ? CLEAVE_REACH_MUL : 1),
+      this.slash(origin, dir, targets, rangeMul * (cleave ? CLEAVE_REACH_MUL : 1),
         cleave ? CLEAVE_ARC_DEG : SLASH_ARC_DEG,
         cleave ? 0xffd54f : 0xff9800,
       );
@@ -157,17 +164,23 @@ export class AbilitySystem {
     }
     if (attacker.isDruidHost()) return null;
 
-    if (attacker.axieClass === "Beast") {
-      return priced(SLASH_COST, "slash");
+    if (isCatClass(attacker.axieClass)) {
+      const loneWolf = !attacker.isDruidHost() && !attacker.isAbsorbed() &&
+        (this.scene.registry.get("hasFusedHost") as boolean);
+      if (loneWolf) {
+        toastOnce(this.scene, "lone_wolf", "Lone Wolf — free slash while allies fused");
+        this.scene.registry.set("loneWolfUsed", true);
+        this.scene.registry.set("loneWolfActive", true);
+      } else {
+        this.scene.registry.set("loneWolfActive", false);
+      }
+      return priced(loneWolf ? LONE_WOLF_SLASH_COST : SLASH_COST, "slash");
     }
-    if (attacker.axieClass === "Plant") {
+    if (isHeavyClass(attacker.axieClass)) {
       const delta = partCostDelta(attacker);
       return priced(Math.max(1, SLAM_COST + delta), "slam", delta < 0 ? 1 : 0);
     }
-    if (attacker.axieClass === "Bird") {
-      return priced(DART_COST, "dart");
-    }
-    return null;
+    return priced(DART_COST, "dart");
   }
 
   private slam(
@@ -176,6 +189,10 @@ export class AbilitySystem {
     targets: AbilityTargets,
     rangeMul: number,
   ): void {
+    if (attacker.isBear()) {
+      return this.groundPound(attacker, origin, targets, rangeMul);
+    }
+
     const radius = SLAM_RADIUS * rangeMul;
     const verb = bearVerb(attacker.pile());
     const color = verb === "thorn_hold" ? 0x2e7d32 : 0x4caf50;
@@ -211,11 +228,107 @@ export class AbilitySystem {
         );
         if (dist <= radius) anchor.addThornHold(THORN_HOLD_MS);
       }
+      // Cracked walls — verb-gated shortcut
+      for (const wall of targets.crackedWalls ?? []) {
+        wall.tryBreak(verb, origin.x, origin.y, radius);
+      }
     } else if (verb === "root_pull") {
       toastOnce(this.scene, "root_pull", verbToast("root_pull"));
       const dest = targets.pullParkedAlly?.(origin);
       if (dest) this.drawVine(origin, dest);
     }
+
+    this.hitRadius(origin, radius, targets, "slam");
+    this.fillNearestPit(origin, radius, targets);
+  }
+
+  private groundPound(
+    attacker: Axie,
+    origin: { x: number; y: number },
+    targets: AbilityTargets,
+    rangeMul: number,
+  ): void {
+    const radius = SLAM_RADIUS * rangeMul * GROUND_POUND_RADIUS_MUL;
+
+    // Fissure lines (visual only)
+    const g = this.scene.add.graphics();
+    g.setDepth(5);
+    g.lineStyle(2, 0xd7ccc8, 0.8);
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3 + (Math.random() - 0.5);
+      const rOuter = radius * (0.6 + Math.random() * 0.4);
+      g.moveTo(origin.x, origin.y);
+      g.lineTo(origin.x + Math.cos(angle) * rOuter, origin.y + Math.sin(angle) * rOuter);
+    }
+    
+    // Darker green ring
+    const ring = this.scene.add.circle(origin.x, origin.y, radius, 0x1b5e20, 0.5);
+    ring.setDepth(6);
+    this.scene.tweens.add({
+      targets: ring,
+      alpha: 0,
+      scale: 1.2,
+      duration: 300,
+      onComplete: () => {
+        ring.destroy();
+        g.destroy();
+      },
+    });
+
+    this.scene.cameras.main.shake(120, 0.008);
+    sfx.slam();
+    hitStop(this.scene, 70);
+    kick(this.scene, 0.01, 100);
+
+    // Stun all brambles
+    let stunned = false;
+    for (const bramble of targets.brambles ?? []) {
+      const dist = Math.hypot(
+        origin.x - bramble.sprite.x,
+        origin.y - bramble.sprite.y,
+      );
+      if (dist <= radius && !bramble.isCut()) {
+        bramble.stun(GROUND_POUND_STUN_MS);
+        stunned = true;
+      }
+    }
+    
+    if (stunned) {
+      toastOnce(this.scene, "ground_pound", "Ground Pound — stuns and shatters");
+      this.scene.registry.set("verbRoute_groundPound", true);
+    }
+
+    targets.anchor?.trySlamLock(origin);
+
+    // The bear verb still applies (Thorn Hold / Root Pull)
+    const verb = bearVerb(attacker.pile());
+    if (verb === "thorn_hold") {
+      for (const plate of targets.plates ?? []) {
+        const dist = Math.hypot(
+          origin.x - plate.sprite.x,
+          origin.y - plate.sprite.y,
+        );
+        if (dist <= radius) plate.addThornHold(THORN_HOLD_MS);
+      }
+      const anchor = targets.anchor;
+      if (anchor) {
+        const dist = Math.hypot(
+          origin.x - anchor.sprite.x,
+          origin.y - anchor.sprite.y,
+        );
+        if (dist <= radius) anchor.addThornHold(THORN_HOLD_MS);
+      }
+      for (const wall of targets.crackedWalls ?? []) {
+        wall.tryBreak(verb, origin.x, origin.y, radius);
+      }
+    } else if (verb === "root_pull") {
+      const dest = targets.pullParkedAlly?.(origin);
+      if (dest) this.drawVine(origin, dest);
+    }
+
+    // Still damage eyes/cores normally
+    this.hitRadius(origin, radius, targets, "slam");
+    this.fillNearestPit(origin, radius, targets);
   }
 
   private fireDart(
@@ -266,8 +379,7 @@ export class AbilitySystem {
   private slash(
     origin: { x: number; y: number },
     facing: { x: number; y: number },
-    brambles: Bramble[],
-    cores: BossCore[],
+    targets: AbilityTargets,
     rangeMul: number,
     arcDeg: number,
     color: number,
@@ -291,22 +403,45 @@ export class AbilitySystem {
       this.scene.cameras.main.shake(50, 0.003);
     }
 
-    for (const bramble of brambles) {
+    const inArc = (sprite: { x: number; y: number }) =>
+      this.inArc(origin, sprite, facingAngle, halfArc, reach);
+
+    const slashDmg = puzzleDamage("slash", "slash");
+    const dartDmg = puzzleDamage("slash", "dart");
+
+    for (const bramble of targets.brambles ?? []) {
       if (bramble.isCut() || !bramble.sprite.active) continue;
-      if (this.inArc(origin, bramble.sprite, facingAngle, halfArc, reach)) {
-        bramble.tryCut();
-      }
+      if (!inArc(bramble.sprite)) continue;
+      const dead = bramble.takeDamage(slashDmg);
+      this.strike(bramble.sprite.x, bramble.sprite.y, slashDmg, dead);
     }
-    for (const core of cores) {
+    for (const core of targets.cores ?? []) {
       if (!core.isExposed()) continue;
-      if (this.inArc(origin, core.sprite, facingAngle, halfArc, reach)) {
-        core.tryCut();
-      }
+      if (!inArc(core.sprite)) continue;
+      const dead = core.takeDamage(slashDmg);
+      this.strike(core.sprite.x, core.sprite.y, slashDmg, dead);
+    }
+    for (const enemy of targets.enemies ?? []) {
+      if (!enemy.body.enable) continue;
+      if (!inArc(enemy.sprite)) continue;
+      enemy.takeDamage(slashDmg);
+      this.strike(enemy.sprite.x, enemy.sprite.y, slashDmg, true);
+    }
+    for (const eye of targets.eyes ?? []) {
+      if (eye.isSolved()) continue;
+      if (!inArc(eye.sprite)) continue;
+      eye.receiveHit(dartDmg);
+      this.strike(eye.sprite.x, eye.sprite.y, dartDmg, eye.isSolved());
+    }
+    const crystal = targets.crystal;
+    if (crystal && !crystal.isSolved() && inArc(crystal.sprite)) {
+      crystal.receiveHit(dartDmg);
+      this.strike(crystal.sprite.x, crystal.sprite.y, dartDmg, crystal.isSolved());
     }
   }
 
   private dart(
-    attacker: Axie,
+    _attacker: Axie,
     origin: { x: number; y: number },
     facing: { x: number; y: number },
     targets: AbilityTargets,
@@ -319,12 +454,19 @@ export class AbilitySystem {
     let impactY = origin.y + facing.y * range;
     let skips = pierceSkips;
     let insideSkip = false;
+    let filledOnce = false;
+    const dartKind: KitKind = seed ? "seed" : "dart";
+    const dartDmg = puzzleDamage(dartKind, "dart");
+    const slashDmg = puzzleDamage(dartKind, "slash");
 
     for (let d = DART_STEP; d <= range; d += DART_STEP) {
       const x = origin.x + facing.x * d;
       const y = origin.y + facing.y * d;
-      if (seed && targets.isPit?.(x, y)) {
-        targets.fillPitAt?.(x, y);
+      if (targets.isPit?.(x, y)) {
+        if (seed || !filledOnce) {
+          targets.fillPitAt?.(x, y);
+          if (!seed) filledOnce = true;
+        }
       }
 
       const blocked = this.isDartBlocked(x, y, targets);
@@ -349,11 +491,11 @@ export class AbilitySystem {
         if (Math.hypot(x - eye.sprite.x, y - eye.sprite.y) > EYE_HIT_RADIUS) {
           continue;
         }
-        eye.receiveHit(attacker);
+        eye.receiveHit(dartDmg);
         impactX = eye.sprite.x;
         impactY = eye.sprite.y;
         hitEye = true;
-        sfx.crystal();
+        this.strike(eye.sprite.x, eye.sprite.y, dartDmg, eye.isSolved());
         hitStop(this.scene, 40);
         break;
       }
@@ -364,13 +506,57 @@ export class AbilitySystem {
         !crystal.isSolved() &&
         Math.hypot(x - crystal.sprite.x, y - crystal.sprite.y) <= EYE_HIT_RADIUS
       ) {
-        crystal.receiveHit(attacker);
+        crystal.receiveHit(dartDmg);
         impactX = crystal.sprite.x;
         impactY = crystal.sprite.y;
-        sfx.crystal();
+        this.strike(crystal.sprite.x, crystal.sprite.y, dartDmg, crystal.isSolved());
         hitStop(this.scene, 40);
         break;
       }
+      let hitBramble = false;
+      for (const bramble of targets.brambles ?? []) {
+        if (bramble.isCut() || !bramble.sprite.active) continue;
+        if (Math.hypot(x - bramble.sprite.x, y - bramble.sprite.y) > EYE_HIT_RADIUS) {
+          continue;
+        }
+        const dead = bramble.takeDamage(slashDmg);
+        this.strike(bramble.sprite.x, bramble.sprite.y, slashDmg, dead);
+        impactX = bramble.sprite.x;
+        impactY = bramble.sprite.y;
+        hitBramble = true;
+        break;
+      }
+      if (hitBramble) break;
+      let hitCore = false;
+      for (const core of targets.cores ?? []) {
+        if (!core.isExposed()) continue;
+        if (Math.hypot(x - core.sprite.x, y - core.sprite.y) > EYE_HIT_RADIUS) {
+          continue;
+        }
+        const dead = core.takeDamage(slashDmg);
+        this.strike(core.sprite.x, core.sprite.y, slashDmg, dead);
+        impactX = core.sprite.x;
+        impactY = core.sprite.y;
+        hitCore = true;
+        hitStop(this.scene, 40);
+        break;
+      }
+      if (hitCore) break;
+      let hitEnemy = false;
+      for (const enemy of targets.enemies ?? []) {
+        if (!enemy.body.enable) continue;
+        if (Math.hypot(x - enemy.sprite.x, y - enemy.sprite.y) > EYE_HIT_RADIUS) {
+          continue;
+        }
+        enemy.takeDamage(slashDmg);
+        this.strike(enemy.sprite.x, enemy.sprite.y, slashDmg, true);
+        impactX = enemy.sprite.x;
+        impactY = enemy.sprite.y;
+        hitEnemy = true;
+        hitStop(this.scene, 40);
+        break;
+      }
+      if (hitEnemy) break;
     }
 
     const color = seed ? 0xb39ddb : pierceSkips > 0 ? 0xfff59d : 0x42a5f5;
@@ -515,6 +701,89 @@ export class AbilitySystem {
       duration: 280,
       onComplete: () => gfx.destroy(),
     });
+  }
+
+  private noteChip(): void {
+    toastOnce(
+      this.scene,
+      "chip",
+      "Chipped — matching job (slash / dart) one-shots.",
+    );
+  }
+
+  private strike(
+    x: number,
+    y: number,
+    amount: number,
+    destroyed: boolean,
+  ): void {
+    hitParticles(this.scene, x, y, destroyed ? 0xffd54f : 0xffffff);
+    floater(this.scene, x, y - 8, `-${amount}`, destroyed ? "#ffd54f" : "#eceff1");
+    if (destroyed) sfx.clear();
+    else {
+      sfx.chip();
+      this.noteChip();
+    }
+  }
+
+  private hitRadius(
+    origin: { x: number; y: number },
+    radius: number,
+    targets: AbilityTargets,
+    kind: KitKind,
+  ): void {
+    const slashDmg = puzzleDamage(kind, "slash");
+    const dartDmg = puzzleDamage(kind, "dart");
+    const near = (sprite: { x: number; y: number }) =>
+      Math.hypot(origin.x - sprite.x, origin.y - sprite.y) <= radius;
+    for (const bramble of targets.brambles ?? []) {
+      if (bramble.isCut() || !bramble.sprite.active) continue;
+      if (!near(bramble.sprite)) continue;
+      const dead = bramble.takeDamage(slashDmg);
+      this.strike(bramble.sprite.x, bramble.sprite.y, slashDmg, dead);
+    }
+    for (const core of targets.cores ?? []) {
+      if (!core.isExposed() || !near(core.sprite)) continue;
+      const dead = core.takeDamage(slashDmg);
+      this.strike(core.sprite.x, core.sprite.y, slashDmg, dead);
+    }
+    for (const enemy of targets.enemies ?? []) {
+      if (!enemy.body.enable || !near(enemy.sprite)) continue;
+      enemy.takeDamage(slashDmg);
+      this.strike(enemy.sprite.x, enemy.sprite.y, slashDmg, true);
+    }
+    for (const eye of targets.eyes ?? []) {
+      if (eye.isSolved() || !near(eye.sprite)) continue;
+      eye.receiveHit(dartDmg);
+      this.strike(eye.sprite.x, eye.sprite.y, dartDmg, eye.isSolved());
+    }
+    const crystal = targets.crystal;
+    if (crystal && !crystal.isSolved() && near(crystal.sprite)) {
+      crystal.receiveHit(dartDmg);
+      this.strike(crystal.sprite.x, crystal.sprite.y, dartDmg, crystal.isSolved());
+    }
+  }
+
+  private fillNearestPit(
+    origin: { x: number; y: number },
+    radius: number,
+    targets: AbilityTargets,
+  ): void {
+    if (!targets.isPit || !targets.fillPitAt) return;
+    let best: { x: number; y: number } | null = null;
+    let bestD = radius;
+    for (let dx = -radius; dx <= radius; dx += 8) {
+      for (let dy = -radius; dy <= radius; dy += 8) {
+        const x = origin.x + dx;
+        const y = origin.y + dy;
+        const d = Math.hypot(dx, dy);
+        if (d > radius || d >= bestD) continue;
+        if (!targets.isPit(x, y)) continue;
+        bestD = d;
+        best = { x, y };
+      }
+    }
+    if (best) targets.fillPitAt(best.x, best.y);
   }
 
   private inArc(

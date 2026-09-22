@@ -13,11 +13,13 @@ import {
   formColor,
   formLabel,
   hawkSpeedMul,
+  isCatClass,
   isHeavyClass,
   pileAffinity,
   type DruidForm,
 } from "../config/forms.ts";
 import { TAILWIND_MUL } from "../config/parts.ts";
+import { dashTrail } from "../systems/Juice.ts";
 
 const BODY_W = 36;
 const BODY_H = 26;
@@ -194,10 +196,18 @@ export class Axie {
     return this.isDruidHost() && this.form === "hawk";
   }
 
+  currentKit(): "slash" | "slam" | "dart" | "seed" | null {
+    if (this.isCat()) return "slash";
+    if (this.isBear()) return "slam";
+    if (this.isHawk()) return "seed";
+    if (this.isAbsorbed()) return null;
+    if (isCatClass(this.axieClass)) return "slash";
+    if (isHeavyClass(this.axieClass)) return "slam";
+    return "dart";
+  }
+
   canPressPlate(): boolean {
-    if (this.isAbsorbed()) return false;
-    if (this.isDruidHost()) return this.form === "bear";
-    return isHeavyClass(this.axieClass);
+    return !this.isAbsorbed();
   }
 
   getRole(): string {
@@ -275,8 +285,7 @@ export class Axie {
     this.formAura.setVisible(false);
     this.indicator.setVisible(false);
     this.shadow.setScale(triple ? 1.55 : 1.35);
-    const tag =
-      this.form === "bear" ? "B" : this.form === "cat" ? "C" : "H";
+    const tag = this.form === "hawk" ? "H" : "B";
     this.slotLabel.setText(`${tag}${triple ? "3" : "2"}`);
   }
 
@@ -376,6 +385,28 @@ export class Axie {
     const lift = this.isDruidHost() ? 52 : LABEL_LIFT;
     this.slotLabel.setPosition(x, y - lift + bob);
     this.slotLabel.setDepth(depth + 0.5);
+
+    // Lone Wolf glow — gold stroke when unfused slash-lineage has the buff
+    const lwActive = !this.isDruidHost() && !this.isAbsorbed() &&
+      isCatClass(this.axieClass) &&
+      (this.scene.registry.get("hasFusedHost") as boolean);
+    if (lwActive) {
+      this.indicator.setVisible(true);
+      this.indicator.setStrokeStyle(2, 0xffd54f, 0.9);
+      this.slotLabel.setColor("#ffd54f");
+    } else if (!this.isDruidHost()) {
+      this.indicator.setStrokeStyle(2, 0xffffff, 0.85);
+      this.slotLabel.setColor("#ffffff");
+    }
+
+    if (moving && this.body.speed > PLAYER_SPEED * 1.1) {
+      if (this.scene.time.now - this.lastTailwindGhost >= 55) {
+        this.lastTailwindGhost = this.scene.time.now;
+        const color = this.isDruidHost() ? (this.form === 'hawk' ? 0x81d4fa : 0xffd54f) : 0xffffff;
+        dashTrail(this.scene, x, y, color, 14);
+      }
+    }
+
     if (this.scene.time.now >= this.tailwindUntil) return;
     if (this.scene.time.now - this.lastTailwindGhost < 55) return;
     this.lastTailwindGhost = this.scene.time.now;

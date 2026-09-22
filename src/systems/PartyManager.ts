@@ -7,7 +7,6 @@ import {
   FOLLOW_STOP_THRESHOLD,
   BREADCRUMB_INTERVAL,
   FUSE_COST,
-  FORM_SWITCH_COST,
   SPLIT_POP,
   DRUID_2_MS,
   DRUID_3_MS,
@@ -19,8 +18,8 @@ import {
 } from "../config/constants.ts";
 import { partFuseBonusMs } from "../config/collection.ts";
 import { bumpLedger } from "../config/energy.ts";
-import { defaultFormFor, formLabel, type DruidForm } from "../config/forms.ts";
-import { floater, hitStop, sfx, spendAt } from "./Juice.ts";
+import { formForSize, formLabel } from "../config/forms.ts";
+import { floater, hitStop, sfx, spendAt, fuseParticles } from "./Juice.ts";
 import {
   HERBIVORE_CAP_PER_ROOM,
   HERBIVORE_PERIOD_MS,
@@ -433,6 +432,22 @@ export class PartyManager {
     return true;
   }
 
+  private enemyHitCooldown = 0;
+
+  takeEnemyDamage(): boolean {
+    if (this.scene.time.now < this.enemyHitCooldown) return false;
+    this.enemyHitCooldown = this.scene.time.now + 1000;
+    const energy = (this.scene.registry.get("energy") as number) ?? 0;
+    this.scene.registry.set("energy", energy - 1);
+    bumpLedger(this.scene, "enemyHit", 1);
+    const active = this.getActive();
+    spendAt(this.scene, active.sprite.x, active.sprite.y, 1);
+    this.scene.cameras.main.shake(100, 0.005);
+    this.scene.cameras.main.flash(150, 229, 57, 53, false);
+    sfx.fail();
+    return true;
+  }
+
   private fuseDurationMs(host: Axie): number {
     const base = host.fusionSize() >= 3 ? DRUID_3_MS : DRUID_2_MS;
     const synergy = host.isDawnSynergy() ? DRUID_SYNERGY_MS : 0;
@@ -440,27 +455,14 @@ export class PartyManager {
     return base + synergy + parts;
   }
 
-  /** Form keys work even while you are driving the unfused leftover Axie. */
-  switchForm(form: DruidForm): void {
-    const host = this.axies.find((a) => a.isDruidHost());
-    if (!host || host.form === form) return;
-    const energy = (this.scene.registry.get("energy") as number) ?? 0;
-    if (energy >= FORM_SWITCH_COST) {
-      this.scene.registry.set("energy", energy - FORM_SWITCH_COST);
-      bumpLedger(this.scene, "formSwitch", FORM_SWITCH_COST);
-      spendAt(this.scene, host.sprite.x, host.sprite.y, FORM_SWITCH_COST);
-    }
-    host.form = form;
-    host.applyDruidLook();
-    sfx.form();
-    hitStop(this.scene, 30);
-    this.syncRegistry();
-  }
-
+  /** Form follows pile size: ×2 Bear, ×3 Hawk. */
   private refreshFuseTimer(host: Axie): void {
     host.fuseUntil = this.scene.time.now + this.fuseDurationMs(host);
-    if (!host.form) host.beginForm(defaultFormFor(host.axieClass));
-    else host.applyDruidLook();
+    const next = formForSize(host.fusionSize());
+    if (host.form !== next) {
+      host.beginForm(next);
+      sfx.form();
+    } else host.applyDruidLook();
   }
 
   private fuse(host: Axie, guest: Axie): void {
@@ -481,6 +483,7 @@ export class PartyManager {
   }
 
   private fusePop(host: Axie): void {
+    // Gold burst
     const pop = this.scene.add.circle(
       host.sprite.x,
       host.sprite.y,
@@ -496,8 +499,56 @@ export class PartyManager {
       duration: 280,
       onComplete: () => pop.destroy(),
     });
+
+    // Form-colored ring
+    const formCol = host.form === "hawk" ? 0x42a5f5 : 0x8d6e63;
+    const ring = this.scene.add.circle(
+      host.sprite.x,
+      host.sprite.y,
+      20,
+      formCol,
+      0.0,
+    );
+    ring.setStrokeStyle(3, formCol, 0.8);
+    ring.setDepth(6);
+    this.scene.tweens.add({
+      targets: ring,
+      scale: 3.2,
+      alpha: 0,
+      duration: 360,
+      onComplete: () => ring.destroy(),
+    });
+
+    // White flash overlay
+    const cam = this.scene.cameras.main;
+    const flash = this.scene.add.rectangle(
+      cam.scrollX + cam.width / 2,
+      cam.scrollY + cam.height / 2,
+      cam.width * 2,
+      cam.height * 2,
+      0xffffff,
+      0.25,
+    );
+    flash.setDepth(50);
+    flash.setScrollFactor(0);
+    this.scene.tweens.add({
+      targets: flash,
+      alpha: 0,
+      duration: 150,
+      onComplete: () => flash.destroy(),
+    });
+
+    // Camera zoom-punch
+    cam.zoomTo(2.16, 180, "Sine.easeOut", false, (_c, p) => {
+      if (p >= 1) cam.zoomTo(2, 280, "Sine.easeIn");
+    });
+
+    // Stronger shake
+    cam.shake(120, 0.008);
+
     sfx.fuse();
-    hitStop(this.scene, 40);
+    hitStop(this.scene, 60);
+    fuseParticles(this.scene, host.sprite.x, host.sprite.y, formCol);
   }
 
   private split(host: Axie): void {
@@ -521,6 +572,7 @@ export class PartyManager {
     }
     host.body.reset(host.sprite.x, host.sprite.y);
     sfx.split();
+    fuseParticles(this.scene, host.sprite.x, host.sprite.y, 0xffffff);
     this.updateActiveVisuals();
     this.syncRegistry();
   }
@@ -667,6 +719,7 @@ export class PartyManager {
 
   private syncRegistry(): void {
     this.scene.registry.set("activeSlot", this.activeSlot);
+    this.scene.registry.set("hasFusedHost", this.axies.some((a) => a.isDruidHost()));
 
     const states: Record<number, string> = {};
     for (const axie of this.axies) {

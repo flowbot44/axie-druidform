@@ -6,6 +6,7 @@ export interface EnergyLedger {
   formSwitch: number;
   kit: number;
   pit: number;
+  enemyHit: number;
   herbivore: number;
   cloverSaved: number;
   cactusSaved: number;
@@ -17,6 +18,7 @@ export function emptyLedger(): EnergyLedger {
     formSwitch: 0,
     kit: 0,
     pit: 0,
+    enemyHit: 0,
     herbivore: 0,
     cloverSaved: 0,
     cactusSaved: 0,

@@ -15,6 +15,7 @@ import { AbilitySystem } from "../systems/AbilitySystem.ts";
 import { registerDungeonTextures } from "../art/textures.ts";
 import { Dungeon } from "../systems/Dungeon.ts";
 import type { TouchAction } from "../config/touch.ts";
+import { toastOnce } from "../config/parts.ts";
 
 interface WASDKeys {
   W: Phaser.Input.Keyboard.Key;
@@ -59,6 +60,12 @@ export class GameScene extends Phaser.Scene {
     this.registry.set("energyLedger", emptyLedger());
     this.registry.set("energyLedgerOnRoomEnter", emptyLedger());
     this.registry.set("retryRoom", false);
+    this.registry.set("hasFusedHost", false);
+    this.registry.set("loneWolfUsed", false);
+    this.registry.set("loneWolfActive", false);
+    this.registry.set("verbRoute_thornShortcut", false);
+    this.registry.set("verbRoute_pierceBonus", false);
+    this.registry.set("verbRoute_groundPound", false);
     this.registry.set("partyStates", {
       1: "active",
       2: "follow",
@@ -95,11 +102,38 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    for (const enemy of this.dungeon.enemies) {
+      this.physics.add.collider(enemy.sprite, this.dungeon.layer);
+      this.physics.add.collider(enemy.sprite, this.dungeon.gate.sprite);
+      this.physics.add.collider(enemy.sprite, this.dungeon.crystal.sprite);
+      this.physics.add.collider(enemy.sprite, this.dungeon.whip.sprite);
+      
+      for (const sprite of sprites) {
+        this.physics.add.overlap(sprite, enemy.sprite, () => {
+          if (!enemy.body.enable) return;
+          const active = this.partyManager.getActive();
+          if (active.sprite !== sprite) return; // Only damage active player
+          if (this.partyManager.takeEnemyDamage()) {
+            // Kick them back a bit
+            const angle = Phaser.Math.Angle.Between(enemy.sprite.x, enemy.sprite.y, sprite.x, sprite.y);
+            active.body.setVelocity(Math.cos(angle) * 300, Math.sin(angle) * 300);
+          }
+        });
+      }
+    }
+
     this.dungeon.enterRoom(1, STARTING_ENERGY, true);
 
     this.scene.launch("HUDScene");
     this.bindKeyboard();
     this.registry.events.on("changedata-touchAction", () => this.handleTouchAction());
+    this.time.delayedCall(500, () => {
+      toastOnce(
+        this,
+        "room1_open",
+        "Go north. Any kit works. Slash is one hit; slam and dart take three.",
+      );
+    });
   }
 
   private bindKeyboard(): void {
@@ -122,15 +156,6 @@ export class GameScene extends Phaser.Scene {
     );
     kb.addKey(Phaser.Input.Keyboard.KeyCodes.THREE).on("down", () =>
       this.partyManager.selectSlot(3),
-    );
-    kb.addKey(Phaser.Input.Keyboard.KeyCodes.Z).on("down", () =>
-      this.partyManager.switchForm("bear"),
-    );
-    kb.addKey(Phaser.Input.Keyboard.KeyCodes.X).on("down", () =>
-      this.partyManager.switchForm("cat"),
-    );
-    kb.addKey(Phaser.Input.Keyboard.KeyCodes.C).on("down", () =>
-      this.partyManager.switchForm("hawk"),
     );
     kb.addKey(Phaser.Input.Keyboard.KeyCodes.TAB).on("down", () =>
       this.partyManager.cycleSlot(),
@@ -166,9 +191,6 @@ export class GameScene extends Phaser.Scene {
     if (action.kind === "kit") this.tryFireAbility();
     else if (action.kind === "fuse") this.partyManager.tryFuseOrSplit();
     else if (action.kind === "park") this.partyManager.toggleFollowPark();
-    else if (action.kind === "bear") this.partyManager.switchForm("bear");
-    else if (action.kind === "cat") this.partyManager.switchForm("cat");
-    else if (action.kind === "hawk") this.partyManager.switchForm("hawk");
     else if (action.kind === "slot" && action.slot) {
       this.partyManager.selectSlot(action.slot);
     }

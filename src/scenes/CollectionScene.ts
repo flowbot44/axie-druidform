@@ -14,7 +14,6 @@ import { plateButton, type PlateButton } from "../ui/menuButton.ts";
 import {
   pileAffinity,
   bearHoldMs,
-  catSlashCost,
   hawkDartCost,
   hawkSpeedMul,
   classJobLine,
@@ -90,7 +89,7 @@ export class CollectionScene extends Phaser.Scene {
       .text(
         cx,
         80,
-        "Any 3 can finish. Gold = Space verb. Cyan Evo = this body. Z Bear / X Cat / C Hawk.",
+        "Any 3 can finish. Gold = Space verb. Fuse two → Bear, three → Hawk.",
         { fontSize: "12px", color: "#90a4ae", fontFamily: "monospace" },
       )
       .setOrigin(0.5);
@@ -163,7 +162,7 @@ export class CollectionScene extends Phaser.Scene {
       .text(
         w / 2,
         698,
-        "1/2/3 pick Axies. After fuse: Z Bear, X Cat, C Hawk. Mixed spends less energy.",
+        "Any Axie can finish. Slash is fastest on thorns. 1/2/3 pick who you drive.",
         { fontSize: "11px", color: "#546e7a", fontFamily: "monospace" },
       )
       .setOrigin(0.5);
@@ -283,17 +282,11 @@ export class CollectionScene extends Phaser.Scene {
     // Team build preview — show form stats based on pile affinity
     if (this.selected.length >= 2) {
       const bearAff = pileAffinity(this.selected, "bear");
-      const catAff = pileAffinity(this.selected, "cat");
       const hawkAff = pileAffinity(this.selected, "hawk");
       const holdSec = (bearHoldMs(bearAff) / 1000).toFixed(1);
-      const slashCost = catSlashCost(catAff);
       const speedPct = Math.round((hawkSpeedMul(hawkAff) - 1) * 100);
       const dartCost = hawkDartCost(hawkAff);
-      const verbs = [
-        bearVerb(this.selected),
-        catVerb(this.selected),
-        hawkVerb(this.selected),
-      ]
+      const verbs = [bearVerb(this.selected), hawkVerb(this.selected), catVerb(this.selected)]
         .filter((v): v is NonNullable<typeof v> => v !== null)
         .map((v) => verbLabel(v));
       const verbBit = verbs.length ? `  ·  ${verbs.join(" / ")}` : "";
@@ -301,7 +294,7 @@ export class CollectionScene extends Phaser.Scene {
         ? "  ·  Herbivore +1e/4s parked"
         : "";
       this.previewLabel.setText(
-        `Bear: ${holdSec}s hold  ·  Cat: ${slashCost}e slash  ·  Hawk: +${speedPct}% spd, ${dartCost}e dart${verbBit}${regenBit}`,
+        `×2 Bear: ${holdSec}s hold  ·  ×3 Hawk: +${speedPct}% fly, ${dartCost}e dart${verbBit}${regenBit}`,
       );
       this.previewLabel.setColor("#b0bec5");
     } else {

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { TILE_SIZE } from "../config/constants.ts";
+import { PUZZLE_HP } from "../config/combat.ts";
 import { ghostBody, idlePulse } from "../art/paint.ts";
 
 /**
@@ -11,6 +12,7 @@ export class BossCore {
   private readonly scene: Phaser.Scene;
   private exposed = false;
   private slashed = false;
+  private hp = PUZZLE_HP;
   private readonly onSlashed: () => void;
 
   constructor(scene: Phaser.Scene, x: number, y: number, onSlashed: () => void) {
@@ -41,8 +43,18 @@ export class BossCore {
     idlePulse(this.scene, this.art);
   }
 
-  tryCut(): boolean {
+  takeDamage(amount: number): boolean {
     if (!this.exposed || this.slashed) return false;
+    this.hp -= amount;
+    if (this.hp > 0) {
+      this.art.setAlpha(0.45);
+      this.scene.tweens.add({
+        targets: this.art,
+        alpha: 1,
+        duration: 90,
+      });
+      return false;
+    }
     this.slashed = true;
     this.scene.tweens.killTweensOf(this.art);
     this.art.setAlpha(1);
@@ -51,9 +63,20 @@ export class BossCore {
     return true;
   }
 
+  setHint(hot: boolean): void {
+    if (!this.exposed || this.slashed) return;
+    if (hot) this.art.setTint(0xffe082);
+    else this.art.clearTint();
+  }
+
+  tryCut(): boolean {
+    return this.takeDamage(PUZZLE_HP);
+  }
+
   reset(): void {
     this.exposed = false;
     this.slashed = false;
+    this.hp = PUZZLE_HP;
     this.scene.tweens.killTweensOf(this.art);
     this.art.setTexture("prop-core");
     this.art.setAlpha(1);

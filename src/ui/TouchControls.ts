@@ -50,15 +50,10 @@ export class TouchControls {
 
     const cx = w - 176;
     const kitY = h - 138;
-    const formY = kitY - 136;
 
     this.btn(cx, kitY, 58, "kit", "KIT", 0xe0b84a, onAction);
     this.btn(cx - 118, kitY - 4, 44, "fuse", "FUSE", 0xce93d8, onAction);
     this.btn(cx + 118, kitY - 4, 44, "park", "PARK", 0xff8a65, onAction);
-
-    this.forms.set("bear", this.btn(cx - 118, formY, 40, "bear", "BEAR", 0xcbb7a0, onAction));
-    this.forms.set("cat", this.btn(cx, formY, 40, "cat", "CAT", 0xff9800, onAction));
-    this.forms.set("hawk", this.btn(cx + 118, formY, 40, "hawk", "HAWK", 0x42a5f5, onAction));
 
     scene.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
       if (this.stickId !== null) return;

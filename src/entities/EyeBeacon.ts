@@ -1,11 +1,11 @@
 import Phaser from "phaser";
 import { idlePulse } from "../art/paint.ts";
-import type { Axie } from "./Axie.ts";
+import { PUZZLE_HP } from "../config/combat.ts";
 
 export type EyeGate = "bird-or-hawk" | "hawk";
 
 /**
- * Room 2: unfused Bird or Hawk. Room 5: Hawk only.
+ * Dart one-shots. Slash/slam chip (3 hits). Art prefix still uses gate.
  */
 export class EyeBeacon {
   public readonly sprite: Phaser.GameObjects.Arc;
@@ -15,6 +15,7 @@ export class EyeBeacon {
   private readonly art: Phaser.GameObjects.Image;
   private readonly prefix: string;
   private solved = false;
+  private hp = PUZZLE_HP;
   private readonly onSolved: () => void;
 
   constructor(
@@ -39,21 +40,26 @@ export class EyeBeacon {
     return this.solved;
   }
 
-  receiveHit(attacker: Axie): boolean {
+  receiveHit(amount: number): boolean {
     if (this.solved) return false;
-    const hawk = attacker.isHawk();
-    const bird = attacker.axieClass === "Bird" && !attacker.isDruidHost();
-    const ok = this.gate === "hawk" ? hawk : hawk || bird;
-    if (!ok) {
-      this.flashWrong();
-      return false;
+    this.hp -= amount;
+    if (this.hp <= 0) {
+      this.solve();
+      return true;
     }
-    this.solve();
+    this.flashChip();
     return true;
+  }
+
+  setHint(hot: boolean): void {
+    if (this.solved) return;
+    if (hot) this.art.setTint(0x81d4fa);
+    else this.art.clearTint();
   }
 
   reset(): void {
     this.solved = false;
+    this.hp = PUZZLE_HP;
     this.scene.tweens.killTweensOf(this.art);
     this.art.setAlpha(1);
     this.art.setTexture(`${this.prefix}-idle`);
@@ -68,19 +74,18 @@ export class EyeBeacon {
     this.onSolved();
   }
 
-  private flashWrong(): void {
+  private flashChip(): void {
     this.scene.tweens.killTweensOf(this.art);
-    this.art.setTexture(`${this.prefix}-bad`);
+    this.art.setTint(0xfffde7);
     this.scene.tweens.add({
       targets: this.art,
-      alpha: { from: 1, to: 0.4 },
-      duration: 80,
+      alpha: { from: 1, to: 0.55 },
+      duration: 70,
       yoyo: true,
-      repeat: 2,
       onComplete: () => {
         if (this.solved) return;
         this.art.setAlpha(1);
-        this.art.setTexture(`${this.prefix}-idle`);
+        this.art.clearTint();
         idlePulse(this.scene, this.art);
       },
     });
